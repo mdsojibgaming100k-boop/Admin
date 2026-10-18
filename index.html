@@ -314,7 +314,13 @@
                             </div>
 
                             <div><label class="block text-sm text-gray-400 mb-2 font-medium">Notice</label><textarea id="set-notice" class="flat-input h-24"></textarea></div>
-                            <div><label class="block text-sm text-gray-400 mb-2 font-medium">Support Link</label><input type="text" id="set-applink" class="flat-input"></div>
+                            <div>
+    <label class="block text-sm text-gray-400 mb-2 font-medium">
+        <i class="fas fa-download text-orange-500 mr-1"></i> App Download Link (APK / Drive / Mediafire লিংক)
+    </label>
+    <input type="url" id="set-applink" class="flat-input" placeholder="https://drive.google.com/... বা ডিরেক্ট APK লিংক দিন">
+    <small class="text-xs text-gray-500 mt-1 block">ইউজার অ্যাপের "DOWNLOAD APP" বাটনে ক্লিক করলে ইউজার এই লিংকে চলে যাবে।</small>
+</div>
                         </div>
                         <button onclick="saveSettings('general')" class="flat-btn mt-6 w-full">Save General Info</button>
                     </div>
@@ -939,10 +945,11 @@
             auto_deposit_push: true
         };
 
-        // অ্যাডমিনের নিজস্ব OneSignal App ID দিয়ে SDK ইনিশিয়ালাইজ (যাতে APK বানালে অ্যাডমিনের ফোনে নোটিফিকেশন বাজে)
+        let isAdminOneSignalInit = false;
         function initAdminOneSignalEngine() {
             const adminId = oneSignalSettings.admin_app_id || oneSignalSettings.app_id;
-            if (!adminId) return;
+            if (!adminId || isAdminOneSignalInit) return;
+            isAdminOneSignalInit = true;
 
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             window.OneSignalDeferred.push(async function(OneSignal) {
@@ -1112,9 +1119,6 @@
                 payload.chrome_web_image = image;
             }
             if (url) payload.url = url;
-
-            // ওয়েব এবং মোবাইল উভয় গ্রাহকদের কাছে পাঠাতে সঠিক সেগমেন্ট
-            payload.included_segments = ["Subscribed Users", "Total Subscriptions"];
 
             try {
                 // ব্রাউজারের CORS বাইপাস করার জন্য সরাসরি ফেইল-সেফ হ্যান্ডলার
@@ -1302,10 +1306,10 @@
             if (type === 'general') {
                 const userThemeColor = (document.getElementById('set-theme-color')?.value || '#0284c7').trim();
                 p1 = db.collection('settings').doc('general').set({
-                    siteName: document.getElementById('set-sitename').value,
-                    logoUrl: document.getElementById('set-logo').value,
-                    notice: document.getElementById('set-notice').value,
-                    appLink: document.getElementById('set-applink').value,
+                    siteName: document.getElementById('set-sitename').value.trim(),
+                    logoUrl: document.getElementById('set-logo').value.trim(),
+                    notice: document.getElementById('set-notice').value.trim(),
+                    appLink: document.getElementById('set-applink').value.trim(),
                     themeColor: userThemeColor
                 }, {merge: true});
             } else if (type === 'social') {
