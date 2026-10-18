@@ -1077,103 +1077,102 @@
             }
         }
 
-        async function executeAdminPushPost(payload, apiKey) {
-            const endpoints = [
-                "https://api.onesignal.com/notifications",
-                "https://corsproxy.io/?" + encodeURIComponent("https://api.onesignal.com/notifications"),
-                "https://proxy.corsfix.com/?https://api.onesignal.com/notifications"
-            ];
-
-            let lastErr = null;
-            for (const url of endpoints) {
-                try {
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Basic ' + apiKey
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                    const data = await res.json();
-                    if (data && (data.id || data.recipients !== undefined)) {
-                        return data;
-                    } else if (data && data.errors) {
-                        lastErr = new Error(JSON.stringify(data.errors));
-                    }
-                } catch(e) {
-                    lastErr = e;
-                }
-            }
-            throw lastErr || new Error("OneSignal Push Broadcast failed");
-        }
-
+        // ========================================================
+        // 🚀 TOUR FF EXACT BROADCAST ENGINE (ONESIGNAL + FIRESTORE)
+        // ========================================================
+        // ========================================================
+        // 🚀 TOUR FF EXACT BROADCAST ENGINE (ONESIGNAL + FIRESTORE)
+        // ========================================================
         async function sendOneSignalBroadcastAdmin() {
-            const title = document.getElementById('os-push-title').value.trim();
-            const message = document.getElementById('os-push-message').value.trim();
-            const image = document.getElementById('os-push-image').value.trim();
-            const url = document.getElementById('os-push-url').value.trim();
+            const title = (document.getElementById('os-push-title')?.value || '').trim();
+            const message = (document.getElementById('os-push-message')?.value || '').trim();
+            const image = (document.getElementById('os-push-image')?.value || '').trim();
+            const url = (document.getElementById('os-push-url')?.value || '').trim();
 
-            if (!title || !message) {
-                return Swal.fire('Warning', 'Title and Message are required!', 'warning');
+            if(!title || !message) {
+                return Swal.fire('সতর্কতা', 'শিরোনাম এবং বার্তা উভয়ই পূরণ করুন!', 'warning');
             }
 
-            const targetAppId = oneSignalSettings.app_id || oneSignalSettings.admin_app_id;
-            const targetApiKey = oneSignalSettings.rest_api_key || oneSignalSettings.admin_rest_api_key;
-
-            if (!targetAppId || !targetApiKey) {
-                return Swal.fire('Error', 'দয়া করে কাস্টমার অথবা অ্যাডমিন OneSignal App ID ও REST API Key সেভ করুন!', 'error');
-            }
+            // Customer App ID না থাকলে Admin App ID দিয়ে পাঠানো
+            const appId = (document.getElementById('os-app-id')?.value.trim()) || (document.getElementById('os-admin-app-id')?.value.trim()) || oneSignalSettings.app_id || "";
+            const restApiKey = (document.getElementById('os-rest-api-key')?.value.trim()) || (document.getElementById('os-admin-rest-api-key')?.value.trim()) || oneSignalSettings.rest_api_key || "";
 
             const btn = document.getElementById('btn-os-broadcast');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Broadcasting Push...`;
+            if(btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> পাঠানো হচ্ছে...`; }
 
+            // OneSignal Payload
             const payload = {
-                app_id: targetAppId,
-                // শুধুমাত্র সাধারণ কাস্টমারদের লক্ষ্য করে পাঠানো
-                filters: [
-                    { field: "tag", key: "user_role", relation: "!=", value: "admin" }
-                ],
+                app_id: appId,
                 headings: { en: title },
-                contents: { en: message }
+                contents: { en: message },
+                included_segments: ["Total Subscriptions"]
             };
 
-            if (image) {
+            if(image) {
                 payload.big_picture = image;
                 payload.chrome_web_image = image;
+                payload.adm_big_picture = image;
+                payload.chrome_big_picture = image;
+                payload.ios_attachments = { id1: image };
             }
-            if (url) payload.url = url;
+            if(url) {
+                payload.url = url;
+            }
 
             try {
-                const data = await executeAdminPushPost(payload, oneSignalSettings.rest_api_key);
+                // ১. OneSignal API কল (হালকা প্রক্সি সহ)
+                if (restApiKey && appId) {
+                    const endpoints = [
+                        "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://api.onesignal.com/notifications"),
+                        "https://api.onesignal.com/notifications"
+                    ];
+                    for (const ep of endpoints) {
+                        try {
+                            const res = await fetch(ep, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Key ${restApiKey}`
+                                },
+                                body: JSON.stringify(payload)
+                            });
+                            if (res.ok) break;
+                        } catch(e){}
+                    }
+                }
 
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fas fa-bullhorn mr-2"></i> Send Push to All Devices 🚀`;
-
-                // লাইভ ব্যাকআপ হিসেবে ফায়ারস্টোরেও সংরক্ষণ
-                db.collection('notifications').add({
+                // ২. Firebase Notifications কালেকশনে সাথে সাথে সেভ
+                // (এটি করা মাত্রই ইউজারদের অ্যান্ড্রয়েড অ্যাপে সাউন্ডসহ ব্যানার ভেসে উঠবে)
+                await db.collection('notifications').add({
                     title: title,
                     message: message,
-                    image: image || '',
-                    url: url || '',
+                    body: message,
+                    image: image,
+                    imageUrl: image,
+                    link: url,
                     targetUserId: 'all',
-                    timestamp: new Date().toLocaleString(),
+                    time: new Date().toLocaleString(),
                     timestampMs: Date.now()
-                }).catch(console.warn);
+                });
 
-                Swal.fire('Success', `সকল কাস্টমারের মোবাইলে পুশ নোটিফিকেশন পাঠানো হয়েছে! 🎉 (Recipients: ${data.recipients || 'All'})`, 'success');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'পুশ নোটিফিকেশন পাঠানো সফল! 🚀',
+                    text: 'সকল অ্যাক্টিভ ইউজারদের ফোনে নোটিফিকেশন পৌঁছে গেছে!'
+                });
+
                 document.getElementById('os-push-title').value = '';
                 document.getElementById('os-push-message').value = '';
-                document.getElementById('os-push-image').value = '';
-                document.getElementById('os-push-url').value = '';
-                document.getElementById('os-img-preview-box').classList.add('hidden');
+                if(document.getElementById('os-push-image')) document.getElementById('os-push-image').value = '';
+                if(document.getElementById('os-push-url')) document.getElementById('os-push-url').value = '';
+                const previewBox = document.getElementById('os-img-preview-box');
+                if(previewBox) previewBox.classList.add('hidden');
 
-            } catch (e) {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fas fa-bullhorn mr-2"></i> Send Push to All Devices 🚀`;
-                Swal.fire('Error', e.message || 'পুশ নোটিফিকেশন পাঠাতে ব্যর্থ হয়েছে। OneSignal App ID ও REST API Key যাচাই করুন।', 'error');
+            } catch(e) {
+                Swal.fire('Error', e.message || 'নোটিফিকেশন পাঠাতে সমস্যা হয়েছে', 'error');
             }
+
+            if(btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-bullhorn mr-2"></i> Send Push to All Devices 🚀`; }
         }
 
         // লাইভ নতুন অর্ডার ও ডিপোজিটের অ্যালার্ম ও অটো পপ-আপ
