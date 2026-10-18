@@ -817,9 +817,23 @@
   messagingSenderId: "350693551073",
   appId: "1:350693551073:web:45d0550a7f880986ea00a0"
 };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+        // ১. মেইন ফায়ারবেস অ্যাপ (ইউজার, প্যাকেজ ও অর্ডারের জন্য)
+        const defaultApp = firebase.initializeApp(firebaseConfig);
+        const db = defaultApp.firestore();
+        const auth = defaultApp.auth();
+
+        // ২. সেন্ট্রাল পেমেন্ট সার্ভার ফায়ারবেস (tournament800-5941d - রিডার ও অটো-পেমেন্টের আসল ডেটাবেজ)
+        const paymentFirebaseConfig = {
+          apiKey: "AIzaSyBBYbM64P96Y0Z1jqTQMAR67D2_CrYgwsk",
+          authDomain: "tournament800-5941d.firebaseapp.com",
+          projectId: "tournament800-5941d",
+          storageBucket: "tournament800-5941d.firebasestorage.app",
+          messagingSenderId: "828735446188",
+          appId: "1:828735446188:web:c16a92e45df21e74ea5309",
+          measurementId: "G-YNKVTRTR94"
+        };
+        const paymentApp = firebase.initializeApp(paymentFirebaseConfig, "paymentGatewayServerApp");
+        const paymentDb = paymentApp.firestore();
 
         let currentServiceId = null;
         let currentServiceName = null;
@@ -1839,30 +1853,31 @@
 
         // =========================================================================
         // 📡 TOURNAMENT STYLE LIVE PAYMENT GATEWAY SERVER & READER SYNC ENGINE
+        // (tournament800-5941d ডিরেক্ট সেন্ট্রাল সিঙ্ক)
         // =========================================================================
         let allReaderSms = [];
         let allSmsLogs = [];
         let readerHeartbeatData = null;
 
-        // রিডার ফোন হার্টবিট ও লাইভ স্ট্যাটাস মনিটর
+        // রিডার ফোন হার্টবিট ও লাইভ স্ট্যাটাস মনিটর (হুবহু TOUR FF সিস্টেম)
         function listenReaderDeviceRealStatus() {
-            // ১. সরাসরি reader_status/device ডকের হার্টবিট ও সার্ভিস স্টেট লিসেনার
-            db.collection('reader_status').doc('device').onSnapshot(snap => {
+            // ১. সরাসরি paymentDb (tournament800-5941d) থেকে reader_status/device ডকের হার্টবিট লিসেনার
+            paymentDb.collection('reader_status').doc('device').onSnapshot(snap => {
                 if (snap.exists) {
                     readerHeartbeatData = snap.data();
                 } else {
                     readerHeartbeatData = null;
                 }
                 updateReaderLiveIndicator();
-            }, err => console.warn("Reader status error:", err));
+            }, err => console.warn("Payment server status error:", err));
 
-            // ২. XNXANIKPAY কালেকশনের হার্টবিট ও SMS লিসেনার
-            db.collection('XNXANIKPAY').onSnapshot(snapshot => {
+            // ২. paymentDb থেকে XNXANIKPAY কালেকশনের হার্টবিট ও SMS লিসেনার
+            paymentDb.collection('XNXANIKPAY').onSnapshot(snapshot => {
                 allReaderSms = [];
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
                     const docId = docSnap.id;
-                    if (docId === 'DEVICE_PING' || data.txid === 'DEVICE_PING' || data.isPing === true) {
+                    if (docId === 'DEVICE_PING' || data.txid === 'DEVICE_PING' || data.trxId === 'DEVICE_PING' || data.isPing === true) {
                         readerHeartbeatData = Object.assign({}, readerHeartbeatData || {}, data);
                     } else {
                         allReaderSms.push({ id: docId, ...data });
@@ -1875,17 +1890,18 @@
                 updateReaderLiveIndicator();
                 renderReaderDeviceLogs(allReaderSms);
                 renderSmsLogs(allReaderSms);
-            }, err => console.warn("Reader SMS error:", err));
+            }, err => console.warn("Payment SMS fetch error:", err));
 
+            // প্রতি ২ সেকেন্ড পর পর লাইভ সেকেন্ড কাউন্টার ও হেলথ চেক
             setInterval(updateReaderLiveIndicator, 2000);
         }
 
-        window.triggerReaderPingTest = function() {
+        window.triggerReaderPingTest = async function() {
             updateReaderLiveIndicator();
             Swal.fire({
                 icon: 'info',
-                title: 'হার্টবিট সিঙ্ক করা হয়েছে',
-                text: 'সার্ভারের সর্বশেষ সংযোগ চেক করা হয়েছে।',
+                title: 'হার্টবিট সিঙ্ক করা হচ্ছে...',
+                text: 'পেমেন্ট গেটওয়ে সার্ভারের সর্বশেষ অ্যাক্টিভিটি চেক করা হয়েছে।',
                 timer: 900,
                 showConfirmButton: false
             });
@@ -1904,6 +1920,8 @@
             const totalCount = document.getElementById('reader-total-sms-count');
             const todayCount = document.getElementById('reader-today-sms-count');
             const dashTodaySms = document.getElementById('dash-today-sms');
+            const metricBg = document.getElementById('metric-bg-running');
+            const metricSmsReady = document.getElementById('metric-sms-ready');
 
             if (totalCount) totalCount.innerText = allReaderSms.length;
 
@@ -1943,13 +1961,14 @@
                 if (realBattery !== null && isOnline) {
                     batteryText.classList.remove('hidden');
                     batteryText.innerText = `🔋 ${realBattery}% চার্জ`;
+                    batteryText.style.color = Number(realBattery) <= 20 ? '#ef4444' : '#34d399';
                 } else {
                     batteryText.classList.add('hidden');
                 }
             }
 
             if (osText) osText.innerHTML = realOs ? `<i class="fab fa-android mr-1"></i> ${realOs}` : `<i class="fab fa-android mr-1"></i> OS: N/A`;
-            if (netText) netText.innerHTML = isOnline ? `<i class="fas fa-wifi mr-1"></i> Net: ${realNet || 'Online'}` : `<i class="fas fa-times-circle mr-1"></i> Disconnected`;
+            if (netText) netText.innerHTML = isOnline ? `<i class="fas fa-wifi mr-1"></i> Net: ${realNet || 'Online'}` : `<i class="fas fa-times-circle mr-1"></i> Status: Disconnected`;
 
             if (isOnline) {
                 const timeText = diffSec <= 5 ? "এইমাত্র (সরাসরি সিঙ্কড)" : `${diffSec} সেকেন্ড আগে`;
@@ -1965,8 +1984,21 @@
                 if (dashDot) {
                     dashDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] inline-block";
                 }
+                if (metricBg) {
+                    metricBg.innerText = 'চালু (Active)';
+                    metricBg.style.color = '#34d399';
+                }
+                if (metricSmsReady) {
+                    metricSmsReady.innerText = 'সক্রিয় (Ready)';
+                    metricSmsReady.style.color = '#34d399';
+                }
             } else {
-                let offlineTime = rawTime > 0 ? `${Math.floor(diffSec / 60)} মিনিট আগে` : "কখনো সংযোগ হয়নি";
+                let offlineTime = "কখনো সংযোগ হয়নি";
+                if (rawTime > 0) {
+                    const diffMin = Math.floor(diffSec / 60);
+                    offlineTime = diffMin < 60 ? `${diffMin} মিনিট আগে` : `${Math.floor(diffMin / 60)} ঘণ্টা আগে`;
+                }
+
                 if (stateBadge) {
                     stateBadge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30";
                     stateBadge.innerText = "🔴 সার্ভার অফলাইন (Disconnected)";
@@ -1979,16 +2011,29 @@
                 if (dashDot) {
                     dashDot.className = "w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] inline-block";
                 }
+                if (metricBg) {
+                    metricBg.innerText = 'বন্ধ (Offline)';
+                    metricBg.style.color = '#ef4444';
+                }
+                if (metricSmsReady) {
+                    metricSmsReady.innerText = 'অক্ষম (Disabled)';
+                    metricSmsReady.style.color = '#ef4444';
+                }
             }
         }
 
         function renderReaderDeviceLogs(logs) {
             const list = document.getElementById('reader-device-log-list');
             if (!list) return;
+
             if (logs.length === 0) {
-                list.innerHTML = `<div class="text-center py-10 text-gray-400">রিডার অ্যাপ থেকে এখনো কোনো SMS আসেনি।</div>`;
+                list.innerHTML = `<div class="text-center py-10 text-gray-400">
+                    <i class="fas fa-satellite-dish text-3xl opacity-30 mb-2 block"></i>
+                    রিডার অ্যাপ থেকে এখনো কোনো SMS আসেনি।<br>ফোনে SMS আসলেই সরাসরি এখানে লাইভ দেখতে পাবেন।
+                </div>`;
                 return;
             }
+
             list.innerHTML = "";
             logs.forEach(sms => {
                 const trxId = sms.txid || sms.trxId || sms.id || 'N/A';
@@ -1996,7 +2041,13 @@
                 const sender = sms.sender || sms.phone || 'N/A';
                 const rawMsg = sms.sms || sms.msg || '';
                 const method = (sms.method || 'MFS').toUpperCase();
-                const timeStr = sms.timestamp ? new Date(Number(sms.timestamp)).toLocaleString() : 'N/A';
+
+                let timeStr = 'N/A';
+                if (sms.timestamp) {
+                    timeStr = new Date(Number(sms.timestamp)).toLocaleString('en-US', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true
+                    });
+                }
 
                 list.innerHTML += `
                 <div class="bg-dark-bg p-4 rounded-xl border border-dark-border flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -2022,12 +2073,13 @@
                 const trx = String(s.txid || s.trxId || '').toLowerCase();
                 const sender = String(s.sender || '').toLowerCase();
                 const amt = String(s.amount || '');
-                return trx.includes(q) || sender.includes(q) || amt.includes(q);
+                const raw = String(s.sms || '').toLowerCase();
+                return trx.includes(q) || sender.includes(q) || amt.includes(q) || raw.includes(q);
             });
             renderReaderDeviceLogs(filtered);
         };
 
-        // --- SMS CLEANER & RAW PARSER FUNCTIONS ---
+        // --- SMS CLEANER & RAW PARSER FUNCTIONS (paymentDb সরাসরি হ্যান্ডলার) ---
         function loadSmsLogs() {
             renderSmsLogs(allSmsLogs);
         }
@@ -2035,10 +2087,12 @@
         function renderSmsLogs(logs) {
             const list = document.getElementById('sms-log-list');
             if(!list) return;
+
             if(logs.length === 0) {
-                list.innerHTML = `<div class="text-center py-10 text-gray-400">কোনো SMS ডাটা নেই (ডাটাবেস ক্লিন)</div>`;
+                list.innerHTML = `<div class="text-center py-10 text-gray-400">কোনো SMS ডাটা নেই (ডাটাবেস সম্পূর্ণ ক্লিন)</div>`;
                 return;
             }
+
             list.innerHTML = "";
             logs.forEach(sms => {
                 const trxId = sms.txid || sms.trxId || sms.id || 'N/A';
@@ -2082,7 +2136,7 @@
         };
 
         window.deleteSingleSms = function(docId) {
-            db.collection('XNXANIKPAY').doc(docId).delete().then(() => {
+            paymentDb.collection('XNXANIKPAY').doc(docId).delete().then(() => {
                 Swal.fire({ toast: true, icon: 'success', title: 'SMS মুছে ফেলা হয়েছে!', timer: 800, showConfirmButton: false, position: 'top-end' });
             });
         };
@@ -2098,8 +2152,8 @@
                 confirmButtonText: 'হ্যাঁ, সব মুছুন'
             }).then(r => {
                 if(r.isConfirmed) {
-                    const batch = db.batch();
-                    allSmsLogs.forEach(s => batch.delete(db.collection('XNXANIKPAY').doc(s.id)));
+                    const batch = paymentDb.batch();
+                    allSmsLogs.forEach(s => batch.delete(paymentDb.collection('XNXANIKPAY').doc(s.id)));
                     batch.commit().then(() => {
                         Swal.fire('Deleted!', 'সকল SMS মুছে ফেলা হয়েছে!', 'success');
                     });
@@ -2111,11 +2165,12 @@
             Swal.fire({
                 icon: 'success',
                 title: 'রিডার অ্যাপ কানেক্টেড! 🟢',
-                html: `মোট সিঙ্কড SMS: <b>${allSmsLogs.length} টি</b><br>ডাটাবেস পাথ: <code>XNXANIKPAY</code>`,
+                html: `মোট সিঙ্কড SMS: <b>${allSmsLogs.length} টি</b><br>ডাটাবেস পাথ: <code>XNXANIKPAY</code> (tournament800-5941d)`,
                 confirmButtonColor: '#F49E0B'
             });
         };
 
+        // --- ইনস্ট্যান্ট SMS পার্সার (সরাসরি paymentDb তে সেভ হবে) ---
         window.parseAndSyncRawSms = function() {
             const rawText = document.getElementById('quick-raw-sms-input').value.trim();
             if(!rawText) return Swal.fire('সতর্কতা', 'মেসেজটি পেস্ট করুন!', 'warning');
@@ -2152,7 +2207,7 @@
             if(!trxId) return Swal.fire('ব্যর্থ', 'মেসেজ থেকে কোনো TrxID পাওয়া যায়নি!', 'error');
 
             showLoading();
-            db.collection('XNXANIKPAY').doc(trxId).set({
+            paymentDb.collection('XNXANIKPAY').doc(trxId).set({
                 txid: trxId,
                 trxId: trxId,
                 amount: amount,
@@ -2171,7 +2226,7 @@
             });
         };
 
-        // ইনিশিয়ালাইজেশন
+        // লাইভ পেমেন্ট সার্ভার ইনিশিয়ালাইজেশন
         listenReaderDeviceRealStatus();
     </script>
 </body>
