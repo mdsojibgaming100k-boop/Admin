@@ -960,11 +960,26 @@
                         notifyButton: { enable: false }
                     });
                     await OneSignal.login("admin_device");
-                    OneSignal.User.addTag("role", "admin");
+                    await OneSignal.User.addTag("role", "admin");
                 } catch(e) {
                     console.warn("Admin OneSignal SDK Init:", e);
                 }
             });
+        }
+
+        // অ্যাডমিন ফোনে নোটিফিকেশন ব্যানার ফায়ার করার ফাংশন
+        function fireAdminPhoneBanner(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(title, {
+                        body: body,
+                        icon: "https://placehold.co/150",
+                        badge: "https://placehold.co/150",
+                        vibrate: [300, 100, 300, 100, 300],
+                        tag: "admin-alert-" + Date.now()
+                    });
+                } catch(e) {}
+            }
         }
 
         function loadOneSignalConfigAdmin() {
@@ -1089,6 +1104,37 @@
             }
         }
 
+        async function executeAdminPushPost(payload, apiKey) {
+            const endpoints = [
+                "https://api.onesignal.com/notifications",
+                "https://corsproxy.io/?" + encodeURIComponent("https://api.onesignal.com/notifications"),
+                "https://proxy.corsfix.com/?https://api.onesignal.com/notifications"
+            ];
+
+            let lastErr = null;
+            for (const url of endpoints) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Basic ' + apiKey
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (data && (data.id || data.recipients !== undefined)) {
+                        return data;
+                    } else if (data && data.errors) {
+                        lastErr = new Error(JSON.stringify(data.errors));
+                    }
+                } catch(e) {
+                    lastErr = e;
+                }
+            }
+            throw lastErr || new Error("OneSignal Push Broadcast failed");
+        }
+
         async function sendOneSignalBroadcastAdmin() {
             const title = document.getElementById('os-push-title').value.trim();
             const message = document.getElementById('os-push-message').value.trim();
@@ -1100,7 +1146,7 @@
             }
 
             if (!oneSignalSettings.app_id || !oneSignalSettings.rest_api_key) {
-                return Swal.fire('Error', 'Please save OneSignal API credentials first!', 'error');
+                return Swal.fire('Error', 'Please save Customer OneSignal API credentials first!', 'error');
             }
 
             const btn = document.getElementById('btn-os-broadcast');
@@ -1121,60 +1167,33 @@
             if (url) payload.url = url;
 
             try {
-                // ব্রাউজারের CORS বাইপাস করার জন্য সরাসরি ফেইল-সেফ হ্যান্ডলার
-                let data = null;
-                try {
-                    const directRes = await fetch('https://api.onesignal.com/notifications', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Key ${oneSignalSettings.rest_api_key}`
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                    data = await directRes.json();
-                } catch (corsErr) {
-                    // CORS ব্লক হলে সাথে সাথে প্রক্সি দিয়ে পাঠানো হবে
-                    const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent('https://api.onesignal.com/notifications');
-                    const proxyRes = await fetch(proxyUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Key ${oneSignalSettings.rest_api_key}`
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                    data = await proxyRes.json();
-                }
+                const data = await executeAdminPushPost(payload, oneSignalSettings.rest_api_key);
 
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fas fa-bullhorn mr-2"></i> Send Push to All Devices 🚀`;
 
-                if (data && !data.errors) {
-                    // ফায়ারস্টোর নোটিফিকেশন তৈরি (যা APK ইউজারদের ফোনে সাথে সাথে বাজবে)
-                    db.collection('notifications').add({
-                        title: title,
-                        message: message,
-                        image: image || '',
-                        url: url || '',
-                        targetUserId: 'all',
-                        timestamp: new Date().toLocaleString(),
-                        timestampMs: Date.now()
-                    }).catch(console.warn);
+                // লাইভ ব্যাকআপ হিসেবে ফায়ারস্টোরেও সংরক্ষণ
+                db.collection('notifications').add({
+                    title: title,
+                    message: message,
+                    image: image || '',
+                    url: url || '',
+                    targetUserId: 'all',
+                    timestamp: new Date().toLocaleString(),
+                    timestampMs: Date.now()
+                }).catch(console.warn);
 
-                    Swal.fire('Success', `সবার ডিভাইসে পুশ নোটিফিকেশন পাঠানো হয়েছে! (Recipients: ${data.recipients || 'All'})`, 'success');
-                    document.getElementById('os-push-title').value = '';
-                    document.getElementById('os-push-message').value = '';
-                    document.getElementById('os-push-image').value = '';
-                    document.getElementById('os-push-url').value = '';
-                    document.getElementById('os-img-preview-box').classList.add('hidden');
-                } else {
-                    Swal.fire('Error', JSON.stringify(data.errors || data), 'error');
-                }
+                Swal.fire('Success', `সকল কাস্টমারের মোবাইলে পুশ নোটিফিকেশন পাঠানো হয়েছে! 🎉 (Recipients: ${data.recipients || 'All'})`, 'success');
+                document.getElementById('os-push-title').value = '';
+                document.getElementById('os-push-message').value = '';
+                document.getElementById('os-push-image').value = '';
+                document.getElementById('os-push-url').value = '';
+                document.getElementById('os-img-preview-box').classList.add('hidden');
+
             } catch (e) {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fas fa-bullhorn mr-2"></i> Send Push to All Devices 🚀`;
-                Swal.fire('Error', e.message || 'পুশ নোটিফিকেশন পাঠাতে ব্যর্থ হয়েছে', 'error');
+                Swal.fire('Error', e.message || 'পুশ নোটিফিকেশন পাঠাতে ব্যর্থ হয়েছে। OneSignal App ID ও REST API Key যাচাই করুন।', 'error');
             }
         }
 
@@ -1189,13 +1208,14 @@
             } catch(e){}
         }
 
-        // ১. নতুন অর্ডার মনিটর
+        // ১. নতুন অর্ডার মনিটর (অ্যাডমিনের জন্য সরাসরি রিয়েল-টাইম অ্যালার্ট)
         db.collection('orders').orderBy('date', 'desc').limit(1).onSnapshot(snapshot => {
             if (!initialOrderLoad) {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === "added") {
                         const order = change.doc.data();
                         playOrderAlarmSound();
+                        fireAdminPhoneBanner("🚨 নতুন অর্ডার এসেছে!", `${order.gameName || 'Game'} - ৳${order.price || 0} (${order.userName || 'Customer'})`);
                         Swal.fire({
                             toast: true,
                             position: 'top-end',
@@ -1212,13 +1232,14 @@
             initialOrderLoad = false;
         });
 
-        // ২. নতুন ডিপোজিট মনিটর
+        // ২. নতুন ডিপোজিট মনিটর (অ্যাডমিনের জন্য সরাসরি রিয়েল-টাইম অ্যালার্ট)
         db.collection('deposits').where('status', '==', 'pending').limit(1).onSnapshot(snapshot => {
             if (!initialDepositLoad) {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === "added") {
                         const dep = change.doc.data();
                         playOrderAlarmSound();
+                        fireAdminPhoneBanner("💰 নতুন ডিপোজিট রিকোয়েস্ট!", `${dep.method} - ৳${dep.amount} (TrxID: ${dep.trxId})`);
                         Swal.fire({
                             toast: true,
                             position: 'top-end',
