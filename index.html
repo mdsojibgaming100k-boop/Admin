@@ -184,6 +184,9 @@
             <a href="#" onclick="switchView('banners')" id="nav-banners" class="nav-link flex items-center px-4 py-3">
                 <i class="fas fa-image w-8 text-center"></i> Banners
             </a>
+            <a href="#" onclick="switchView('onesignal-manager')" id="nav-onesignal-manager" class="nav-link flex items-center px-4 py-3">
+                <i class="fas fa-bell w-8 text-center text-red-400"></i> OneSignal Push
+            </a>
             
             <a href="#" onclick="switchView('reader-device')" id="nav-reader-device" class="nav-link flex items-center px-4 py-3">
                 <i class="fas fa-server w-8 text-center text-emerald-400"></i> Payment Server
@@ -584,6 +587,91 @@
                 </div>
             </div>
 
+            <!-- DEDICATED ONESIGNAL MANAGER VIEW (A TO Z EXACT) -->
+            <div id="view-onesignal-manager" class="view-section hidden">
+                <!-- 1. OneSignal Credentials Card -->
+                <div class="card mb-6 border border-red-500/30">
+                    <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-dark-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl text-red-400">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-white">OneSignal Push Engine</h3>
+                                <p class="text-xs text-gray-400">OneSignal REST API v5 ও লাইভ ব্রডকাস্ট কনফিগারেশন</p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30">REST API v5</span>
+                    </div>
+
+                    <div class="space-y-4 mt-5">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium">OneSignal App ID *</label>
+                            <input type="text" id="os-app-id" class="flat-input font-mono" value="7398e8c1-9373-4680-bc63-27c413779609" placeholder="7398e8c1-9373-4680-bc63-27c413779609">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium">OneSignal REST API Key (Settings > Keys & IDs) *</label>
+                            <input type="password" id="os-rest-api-key" class="flat-input font-mono" placeholder="Enter OneSignal REST API Key (e.g. os_v2_app_...)">
+                        </div>
+
+                        <button class="flat-btn w-full" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="saveOneSignalConfig()">
+                            <i class="fas fa-save mr-1"></i> OneSignal সেটিংস সংরক্ষণ করুন
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. OneSignal Broadcast Card -->
+                <div class="card border border-dark-border">
+                    <h4 class="text-base font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i> OneSignal দিয়ে পুশ নোটিফিকেশন পাঠান
+                    </h4>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium">টার্গেট অডিয়েন্স (Target Audience)</label>
+                            <select id="os-target-audience" class="flat-input" onchange="document.getElementById('os-target-uid-box').style.display = this.value === 'single' ? 'block' : 'none'">
+                                <option value="all">📢 সকল OneSignal সাবস্ক্রাইবার (All Subscribed Devices)</option>
+                                <option value="single">👤 নির্দিষ্ট ইউজার এক্সটার্নাল ID (User UID)</option>
+                            </select>
+                        </div>
+
+                        <div id="os-target-uid-box" style="display:none;">
+                            <label class="block text-sm text-gray-400 mb-2 font-medium">ইউজার UID (External User ID)</label>
+                            <input type="text" id="os-target-uid" class="flat-input font-mono" placeholder="Enter target user UID">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium">নোটিফিকেশনের শিরোনাম (Title) *</label>
+                            <input type="text" id="os-push-title" class="flat-input" placeholder="🔥 ইনস্ট্যান্ট ডায়মন্ড টপ-আপ অফার!">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium">বার্তা (Message) *</label>
+                            <textarea id="os-push-message" class="flat-input h-20" placeholder="এখনই সবচেয়ে কম মূল্যে ইউআইডি টপ-আপ সম্পন্ন করুন..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium"><i class="far fa-image mr-1"></i> ব্যানার ছবি (Big Picture URL - ঐচ্ছিক)</label>
+                            <input type="url" id="os-push-image" class="flat-input" placeholder="https://i.ibb.co/... (ফোনের স্ক্রিনে বড় ব্যানার হিসেবে শো করবে)" oninput="window.previewPushImage(this.value, 'os-preview-box', 'os-preview-img')">
+                            <!-- লাইভ প্রিভিউ -->
+                            <div id="os-preview-box" class="hidden mt-3 rounded-xl overflow-hidden max-h-48 border border-red-500/30 bg-black">
+                                <img id="os-preview-img" class="w-full h-full max-h-48 object-cover" alt="Banner Preview">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2 font-medium"><i class="fas fa-link mr-1"></i> টার্গেট ওয়েব লিংক (Launch URL - ঐচ্ছিক)</label>
+                            <input type="text" id="os-push-url" class="flat-input" placeholder="https://yoursite.com/">
+                        </div>
+
+                        <button id="os-send-btn" class="flat-btn w-full text-base font-bold py-3.5" style="background: linear-gradient(135deg, #ef4444, #f97316);" onclick="sendOneSignalBroadcast()">
+                            <i class="fas fa-bell mr-1"></i> OneSignal সার্ভার দিয়ে সরাসরি পুশ পাঠান 🚀
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- 📡 PAYMENT GATEWAY SERVER MONITOR VIEW -->
             <div id="view-reader-device" class="view-section hidden">
                 <div class="card mb-6 border border-emerald-500/30">
@@ -830,6 +918,7 @@
             if(viewId === 'unpin') loadUnpinCodes();
             if(viewId === 'tutorials') loadTutorials();
             if(viewId === 'banners') loadBanners();
+            if(viewId === 'onesignal-manager') loadOneSignalConfig();
             if(viewId === 'reader-device') updateReaderLiveIndicator();
             if(viewId === 'sms-cleaner') loadSmsLogs();
         }
@@ -1813,6 +1902,180 @@
 
         // লাইভ পেমেন্ট সার্ভার ইনিশিয়ালাইজেশন
         listenReaderDeviceRealStatus();
+
+        // =========================================================================
+        // 🔔 ONESIGNAL PUSH ENGINE (A TO Z EXACT ADMIN CONTROLLER)
+        // =========================================================================
+        let oneSignalConfigData = {
+            app_id: "7398e8c1-9373-4680-bc63-27c413779609",
+            rest_api_key: ""
+        };
+
+        function loadOneSignalConfig() {
+            db.collection('settings').doc('onesignal_config').get().then(snap => {
+                if(snap.exists) {
+                    oneSignalConfigData = { ...oneSignalConfigData, ...snap.data() };
+                }
+                const appInp = document.getElementById('os-app-id');
+                const keyInp = document.getElementById('os-rest-api-key');
+                if(appInp) appInp.value = oneSignalConfigData.app_id || "7398e8c1-9373-4680-bc63-27c413779609";
+                if(keyInp) keyInp.value = oneSignalConfigData.rest_api_key || "";
+            });
+        }
+
+        window.saveOneSignalConfig = async () => {
+            const appId = (document.getElementById('os-app-id')?.value.trim()) || "7398e8c1-9373-4680-bc63-27c413779609";
+            const restApiKey = (document.getElementById('os-rest-api-key')?.value.trim()) || "";
+
+            showLoading();
+            try {
+                await db.collection('settings').doc('onesignal_config').set({
+                    app_id: appId,
+                    rest_api_key: restApiKey,
+                    updatedAt: new Date().toLocaleString()
+                }, { merge: true });
+
+                hideLoading();
+                Swal.fire({ icon:'success', title:'OneSignal সেটিংস সংরক্ষিত হয়েছে! 🎉', timer:1500, showConfirmButton:false });
+            } catch(e) {
+                hideLoading();
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+
+        window.previewPushImage = (url, boxId, imgId) => {
+            const box = document.getElementById(boxId);
+            const img = document.getElementById(imgId);
+            if (!box || !img) return;
+            const clean = (url || '').trim();
+            if (clean.startsWith('http://') || clean.startsWith('https://')) {
+                img.src = clean;
+                img.onload = () => { box.classList.remove('hidden'); };
+                img.onerror = () => { box.classList.add('hidden'); };
+            } else {
+                box.classList.add('hidden');
+            }
+        };
+
+        window.sendOneSignalBroadcast = async () => {
+            const title = (document.getElementById('os-push-title')?.value || '').trim();
+            const message = (document.getElementById('os-push-message')?.value || '').trim();
+            const image = (document.getElementById('os-push-image')?.value || '').trim();
+            const url = (document.getElementById('os-push-url')?.value || '').trim();
+            const audience = document.getElementById('os-target-audience')?.value || 'all';
+            const targetUid = (document.getElementById('os-target-uid')?.value || '').trim();
+
+            if(!title || !message) {
+                return Swal.fire('সতর্কতা', 'শিরোনাম এবং বার্তা উভয়ই পূরণ করুন!', 'warning');
+            }
+
+            const appId = (document.getElementById('os-app-id')?.value.trim()) || oneSignalConfigData.app_id || "7398e8c1-9373-4680-bc63-27c413779609";
+            const restApiKey = (document.getElementById('os-rest-api-key')?.value.trim()) || oneSignalConfigData.rest_api_key || "";
+
+            if(!restApiKey) {
+                return Swal.fire('REST API Key প্রয়োজন', 'দয়া করে আপনার OneSignal Dashboard (Settings > Keys & IDs) থেকে REST API Key দিন!', 'warning');
+            }
+
+            const sendBtn = document.getElementById('os-send-btn');
+            if(sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> OneSignal সার্ভারে পাঠানো হচ্ছে...`; }
+
+            const payload = {
+                app_id: appId,
+                headings: { en: title },
+                contents: { en: message }
+            };
+
+            if(audience === 'single' && targetUid) {
+                payload.include_aliases = { external_id: [targetUid] };
+                payload.target_channel = "push";
+            } else {
+                payload.included_segments = ["Total Subscriptions"];
+            }
+
+            if(image) {
+                payload.big_picture = image;
+                payload.chrome_web_image = image;
+                payload.adm_big_picture = image;
+                payload.chrome_big_picture = image;
+                payload.ios_attachments = { id1: image };
+            }
+            if(url) {
+                payload.url = url;
+            }
+
+            try {
+                let response;
+                let resData;
+                let isSuccess = false;
+
+                try {
+                    response = await fetch('https://api.onesignal.com/notifications', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Key ${restApiKey}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    resData = await response.json();
+                    if(response.ok && !resData.errors) isSuccess = true;
+                } catch(netErr) {
+                    console.warn("Direct fetch blocked by CORS, trying fallback proxy...", netErr);
+                }
+
+                if (!isSuccess) {
+                    try {
+                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.onesignal.com/notifications')}`;
+                        const pRes = await fetch(proxyUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Key ${restApiKey}`
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        resData = await pRes.json();
+                        if (pRes.ok && !resData.errors) isSuccess = true;
+                    } catch(pErr) {}
+                }
+
+                if(isSuccess && resData && !resData.errors) {
+                    await db.collection('notifications').add({
+                        title: title,
+                        message: message,
+                        body: message,
+                        image: image,
+                        imageUrl: image,
+                        link: url,
+                        source: 'OneSignal',
+                        targetUserId: audience === 'single' ? targetUid : 'all',
+                        time: new Date().toLocaleString(),
+                        timestampMs: Date.now()
+                    }).catch(console.warn);
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'OneSignal পুশ পাঠানো সফল! 🚀',
+                        text: `Recipients: ${resData.recipients || 'All Active Devices'}`
+                    });
+
+                    document.getElementById('os-push-title').value = '';
+                    document.getElementById('os-push-message').value = '';
+                    if(document.getElementById('os-push-image')) document.getElementById('os-push-image').value = '';
+                    const osPreviewBox = document.getElementById('os-preview-box');
+                    if(osPreviewBox) osPreviewBox.classList.add('hidden');
+                } else {
+                    const errText = (resData && resData.errors) ? JSON.stringify(resData.errors) : 'OneSignal API Error';
+                    Swal.fire('OneSignal Error', errText, 'error');
+                }
+            } catch(netErr) {
+                Swal.fire('Network Error', netErr.message, 'error');
+            }
+
+            if(sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = `<i class="fas fa-bell mr-1"></i> OneSignal সার্ভার দিয়ে সরাসরি পুশ পাঠান 🚀`; }
+        };
+
+        loadOneSignalConfig();
         
 
     </script>
