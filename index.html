@@ -2003,59 +2003,94 @@
             badge.innerText = "🔴 রেজিস্টার্ড নয় (ক্লিক করে অন করুন)";
         }
 
-        // 📱 অ্যাডমিন ডিভাইস রেজিস্টার (হ্যাং হবে না ও রিয়েল-টাইম পারমিশন নিশ্চিত করবে)
+        // 📱 অ্যাডমিন ডিভাইস রেজিস্টার (ফুল-স্ক্রিন স্পিনার মুক্ত, সরাসরি Allow প্রম্পট আসবে)
         window.registerThisDeviceAsAdmin = async function() {
             if ("Notification" in window && Notification.permission === "denied") {
                 return Swal.fire({
                     icon: 'warning',
                     title: 'নোটিফিকেশন ব্লক করা!',
-                    html: 'আপনার ব্রাউজারে নোটিফিকেশন ব্লক করা আছে।<br>অনুগ্রহ করে ব্রাউজারের তালার আইকনে (Lock Icon) চাপ দিয়ে <b>Notifications: Allow</b> করে পেজ রিলোড দিন।'
+                    html: 'আপনার ব্রাউজারে নোটিফিকেশন ব্লক করা আছে।<br><br>অনুগ্রহ করে ব্রাউজারের উপরে থাকা <b>তাল বা সাইট সেটিংসে</b> গিয়ে <b>Notifications: Allow</b> করুন এবং পেজ রিলোড দিন।'
                 });
             }
 
-            showLoading();
+            const regBtn = document.querySelector('button[onclick="registerThisDeviceAsAdmin()"]');
+            let originalBtnHtml = '';
+            if (regBtn) {
+                originalBtnHtml = regBtn.innerHTML;
+                regBtn.disabled = true;
+                regBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> সংযোগ করা হচ্ছে...`;
+            }
+
+            let isCompleted = false;
+            const safetyTimeout = setTimeout(() => {
+                if (!isCompleted) {
+                    if (regBtn) {
+                        regBtn.disabled = false;
+                        regBtn.innerHTML = originalBtnHtml;
+                    }
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'ব্রাউজার পারমিশন চেক করুন',
+                        html: 'আপনার ব্রাউজারের উপরে বা নোটিফিকেশন বারে কোনো <b>Allow</b> অপশন এসেছে কিনা দেখুন।'
+                    });
+                }
+            }, 6000);
 
             try {
-                // ১. সরাসরি ব্রাউজার পারমিশন প্রম্পট খোলা
-                let perm = Notification.permission;
-                if (perm !== "granted") {
-                    perm = await Notification.requestPermission();
-                }
-
-                if (perm !== "granted") {
-                    hideLoading();
-                    return Swal.fire('অনুমতি মেলেনি', 'নোটিফিকেশন পেতে হলে ব্রাউজার পপআপে Allow করতে হবে।', 'info');
-                }
-
-                // ২. OneSignal ট্যাগ ও পুশ সাবস্ক্রিপশন সম্পন্ন করা
                 window.OneSignalDeferred = window.OneSignalDeferred || [];
                 OneSignalDeferred.push(async function(OneSignal) {
                     try {
+                        // ১. OneSignal এর অফিশিয়াল পারমিশন ডায়ালগ
+                        await OneSignal.Notifications.requestPermission();
+
+                        // ২. অ্যাডমিন রোল ট্যাগ যুক্ত করা
                         await OneSignal.User.addTag("role", "admin");
                         await OneSignal.User.addTag("admin_alerts", "true");
 
-                        if (OneSignal.User.PushSubscription) {
+                        // ৩. সাবস্ক্রিপশন সম্পন্ন করা
+                        if (OneSignal.User && OneSignal.User.PushSubscription) {
                             await OneSignal.User.PushSubscription.optIn();
                         }
 
-                        hideLoading();
-                        checkAdminDeviceStatus();
+                        isCompleted = true;
+                        clearTimeout(safetyTimeout);
+
+                        if (regBtn) {
+                            regBtn.disabled = false;
+                            regBtn.innerHTML = originalBtnHtml;
+                        }
+
+                        const badge = document.getElementById('admin-device-badge');
+                        if (badge) {
+                            badge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                            badge.innerText = "🟢 ডিভাইস রেজিস্টার্ড ও সক্রিয়";
+                        }
 
                         Swal.fire({
                             icon: 'success',
-                            title: 'ডিভাইস রেজিস্টার সফল! 📱',
-                            text: 'আপনার ফোনটি অ্যাডমিন হিসেবে সফলভাবে সক্রিয় হয়েছে। এখন "টেস্ট অ্যাডমিন এলার্ট" বাটনে ক্লিক করুন।',
+                            title: 'ডিভাইস রেজিস্টার সফল! 🎉',
+                            html: 'আপনার ফোনটি অ্যাডমিন হিসেবে সফলভাবে সক্রিয় হয়েছে।<br><br>এখন <b>"টেস্ট অ্যাডমিন এলার্ট"</b> বাটনে চাপুন।',
                             confirmButtonColor: '#F49E0B'
                         });
 
                     } catch (innerErr) {
-                        hideLoading();
-                        Swal.fire('ত্রুটি', innerErr.message || 'OneSignal সিঙ্ক হতে সমস্যা হয়েছে!', 'error');
+                        isCompleted = true;
+                        clearTimeout(safetyTimeout);
+                        if (regBtn) {
+                            regBtn.disabled = false;
+                            regBtn.innerHTML = originalBtnHtml;
+                        }
+                        Swal.fire('ত্রুটি', innerErr.message || 'OneSignal সিঙ্ক হতে সমস্যা হয়েছে', 'error');
                     }
                 });
 
-            } catch(err) {
-                hideLoading();
+            } catch (err) {
+                isCompleted = true;
+                clearTimeout(safetyTimeout);
+                if (regBtn) {
+                    regBtn.disabled = false;
+                    regBtn.innerHTML = originalBtnHtml;
+                }
                 Swal.fire('ত্রুটি', err.message, 'error');
             }
         };
