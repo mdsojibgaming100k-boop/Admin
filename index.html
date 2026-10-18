@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- OneSignal SDK for Admin -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -2007,28 +2009,36 @@
 
         window.registerThisDeviceAsAdmin = async function() {
             showLoading();
-            try {
-                if (window.OneSignal) {
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            OneSignalDeferred.push(async function(OneSignal) {
+                try {
+                    await OneSignal.init({
+                        appId: "7398e8c1-9373-4680-bc63-27c413779609",
+                        allowLocalhostAsSecureOrigin: true
+                    });
+
                     await OneSignal.Notifications.requestPermission();
                     await OneSignal.User.addTag("role", "admin");
                     await OneSignal.User.addTag("admin_alerts", "true");
                     
                     hideLoading();
-                    checkAdminDeviceStatus();
+                    const badge = document.getElementById('admin-device-badge');
+                    if (badge) {
+                        badge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                        badge.innerText = "🟢 ডিভাইস রেজিস্টার্ড ও সক্রিয়";
+                    }
+
                     Swal.fire({
                         icon: 'success',
                         title: 'ডিভাইস রেজিস্টার সফল! 📱',
-                        text: 'এখন থেকে কাস্টমারদের নতুন অর্ডার ও ডিপোজিট আসলে এই ফোনে পুশ নোটিফিকেশন আসবে।',
+                        text: 'এখন থেকে কাস্টমারদের নতুন অর্ডার ও ডিপোজিট আসলে সরাসরি এই ফোনে পুশ নোটিফিকেশন আসবে।',
                         confirmButtonColor: '#F49E0B'
                     });
-                } else {
+                } catch (err) {
                     hideLoading();
-                    Swal.fire('Error', 'OneSignal SDK এখনও প্রস্তুত নয়, পেজ রিফ্রেশ দিন!', 'error');
+                    Swal.fire('Error', err.message || 'নোটিফিকেশন অনুমতি পাওয়া যায়নি!', 'error');
                 }
-            } catch (err) {
-                hideLoading();
-                Swal.fire('Error', err.message, 'error');
-            }
+            });
         };
 
         function loadOneSignalConfig() {
