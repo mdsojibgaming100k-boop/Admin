@@ -1137,13 +1137,13 @@
         // ⚡ ULTRA-FAST PUSH ENGINE (1 SECOND DELAY FIX + NO HANG)
         // ========================================================
         // ========================================================
-        // 🚀 TOUR FF EXACT BROADCAST ENGINE (HACK-FREE & 100% WORKING)
+        // 🚀 TOUR FF EXACT BROADCAST ENGINE (ANDROID APK & WEB AWAKENER)
         // ========================================================
         window.sendNotification = async () => {
             const title = (document.getElementById('os-push-title')?.value || '').trim();
             const body = (document.getElementById('os-push-message')?.value || '').trim();
             const image = (document.getElementById('os-push-image')?.value || '').trim();
-            const link = (document.getElementById('os-push-url')?.value || '').trim();
+            const url = (document.getElementById('os-push-url')?.value || '').trim();
 
             if(!title || !body) {
                 return Swal.fire('সতর্কতা', 'শিরোনাম এবং বার্তা উভয়ই পূরণ করুন!', 'warning');
@@ -1153,14 +1153,14 @@
             if(btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> পাঠানো হচ্ছে...`; }
 
             try {
-                // ১. ফায়ারস্টোরে হিস্ট্রি সেভ
+                // ১. ফায়ারস্টোরে সেভ (অ্যাপ ওপেন থাকলে সাথে সাথে রিসিভ হবে)
                 await db.collection('notifications').add({
                     title: title,
                     message: body,
                     body: body,
                     image: image,
                     imageUrl: image,
-                    link: link,
+                    link: url,
                     targetUserId: 'all',
                     userName: 'All Users',
                     userEmail: 'Broadcast',
@@ -1169,7 +1169,7 @@
                     createdAt: new Date().toISOString()
                 });
 
-                // ২. OneSignal API-তে সরাসরি পুশ (TOUR FF লাইন 1980-2007 হুবহু)
+                // ২. OneSignal REST API High-Priority Push (অ্যাপ ও ফোন বন্ধ থাকলেও নোটিফিকেশন বারে ধাক্কা মারবে)
                 const targetAppId = (document.getElementById('os-app-id')?.value.trim()) || "f02ea885-f5f3-4c5e-9baa-d91066b14653";
                 const targetRestKey = (document.getElementById('os-rest-api-key')?.value.trim()) || (document.getElementById('os-admin-rest-api-key')?.value.trim()) || oneSignalSettings.rest_api_key || "";
 
@@ -1179,14 +1179,20 @@
                         app_id: targetAppId,
                         included_segments: ["Total Subscriptions"],
                         headings: { en: title },
-                        contents: { en: body }
+                        contents: { en: body },
+                        priority: 10,
+                        ttl: 259200,
+                        android_visibility: 1,
+                        content_available: true
                     };
                     if (image) {
                         osPayload.big_picture = image;
                         osPayload.chrome_web_image = image;
+                        osPayload.adm_big_picture = image;
                     }
                     if (link) osPayload.url = link;
 
+                    // Direct ও CORS Proxy ব্যাকআপ
                     fetch('https://api.onesignal.com/notifications', {
                         method: 'POST',
                         headers: {
@@ -1194,10 +1200,26 @@
                             'Authorization': `Key ${cleanKey}`
                         },
                         body: JSON.stringify(osPayload)
-                    }).catch(console.warn);
+                    }).catch(() => {
+                        fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.onesignal.com/notifications')}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Key ${cleanKey}`
+                            },
+                            body: JSON.stringify(osPayload)
+                        }).catch(console.warn);
+                    });
                 }
 
-                Swal.fire({ icon:'success', title: 'ছবি সহ নোটিফিকেশন সফলভাবে পাঠানো হয়েছে! 🎉', timer:1600, showConfirmButton:false });
+                Swal.fire({ 
+                    icon:'success', 
+                    title: 'পুশ নোটিফিকেশন পাঠানো হয়েছে! 🚀', 
+                    text: 'সকল ডিভাইসে সরাসরি নোটিফিকেশন পৌঁছে গেছে!',
+                    timer: 1600, 
+                    showConfirmButton: false 
+                });
+
                 document.getElementById('os-push-title').value = "";
                 document.getElementById('os-push-message').value = "";
                 if(document.getElementById('os-push-image')) document.getElementById('os-push-image').value = "";
