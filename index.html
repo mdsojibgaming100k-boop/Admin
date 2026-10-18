@@ -1037,7 +1037,7 @@
             });
         }
 
-        // অ্যাডমিন ডিভাইসের পারমিশন চালু করা
+        // অ্যাডমিন ডিভাইসের ব্রাউজার/APK পুশ পারমিশন অন করার ফাংশন (একক ও নির্ভুল)
         async function enableAdminDevicePush() {
             if (!("Notification" in window)) {
                 return Swal.fire('Error', 'এই ডিভাইসে নোটিফিকেশন সাপোর্ট করে না', 'error');
@@ -1049,33 +1049,6 @@
                     await OneSignal.Notifications.requestPermission();
                     await OneSignal.login("admin_device");
                     OneSignal.User.addTag("role", "admin");
-                });
-
-                const permission = await Notification.requestPermission();
-                if (permission === "granted") {
-                    playOrderAlarmSound();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'অ্যাডমিন ডিভাইস সক্রিয়! 🔔',
-                        text: 'এখন এই অ্যাডমিন প্যানেলকে APK বানালেও নতুন অর্ডার ও ডিপোজিট আসলে ফোনে পুশ নোটিফিকেশন আসবে।'
-                    });
-                }
-            } catch(e) {
-                Swal.fire('Error', e.message, 'error');
-            }
-        }
-
-        // অ্যাডমিন ডিভাইসের ব্রাউজার/APK পুশ পারমিশন অন করার ফাংশন
-        async function enableAdminDevicePush() {
-            if (!("Notification" in window)) {
-                return Swal.fire('Error', 'এই ডিভাইসে নোটিফিকেশন সাপোর্ট করে না', 'error');
-            }
-
-            try {
-                window.OneSignalDeferred = window.OneSignalDeferred || [];
-                window.OneSignalDeferred.push(async function(OneSignal) {
-                    await OneSignal.Notifications.requestPermission();
-                    await OneSignal.login("admin_device");
                     OneSignal.User.addTag("user_role", "admin");
                 });
 
@@ -1084,8 +1057,8 @@
                     playOrderAlarmSound();
                     Swal.fire({
                         icon: 'success',
-                        title: 'অ্যাডমিন পুশ সফলভাবে সক্রিয় হয়েছে! 🔔',
-                        text: 'এখন এই ডিভাইসকে APK বানালেও নতুন অর্ডার ও ডিপোজিটের পুশ নোটিফিকেশন পাবেন।'
+                        title: 'অ্যাডমিন পুশ সক্রিয় হয়েছে! 🔔',
+                        text: 'এখন এই অ্যাডমিন প্যানেল বা APK-তে নতুন অর্ডার ও ডিপোজিটের নিজস্ব এলার্ট সরাসরি আসবে।'
                     });
                 }
             } catch(e) {
@@ -1145,8 +1118,11 @@
                 return Swal.fire('Warning', 'Title and Message are required!', 'warning');
             }
 
-            if (!oneSignalSettings.app_id || !oneSignalSettings.rest_api_key) {
-                return Swal.fire('Error', 'Please save Customer OneSignal API credentials first!', 'error');
+            const targetAppId = oneSignalSettings.app_id || oneSignalSettings.admin_app_id;
+            const targetApiKey = oneSignalSettings.rest_api_key || oneSignalSettings.admin_rest_api_key;
+
+            if (!targetAppId || !targetApiKey) {
+                return Swal.fire('Error', 'দয়া করে কাস্টমার অথবা অ্যাডমিন OneSignal App ID ও REST API Key সেভ করুন!', 'error');
             }
 
             const btn = document.getElementById('btn-os-broadcast');
@@ -1154,8 +1130,11 @@
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Broadcasting Push...`;
 
             const payload = {
-                app_id: oneSignalSettings.app_id,
-                included_segments: ["Total Subscriptions"],
+                app_id: targetAppId,
+                // শুধুমাত্র সাধারণ কাস্টমারদের লক্ষ্য করে পাঠানো
+                filters: [
+                    { field: "tag", key: "user_role", relation: "!=", value: "admin" }
+                ],
                 headings: { en: title },
                 contents: { en: message }
             };
