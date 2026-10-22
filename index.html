@@ -380,6 +380,40 @@
                         <button onclick="saveSettings('payment')" class="flat-btn mt-6 w-full">Save Payment Numbers</button>
                     </div>
 
+                    <!-- 🤖 AI ASSISTANT CONFIGURATION CARD -->
+                    <div class="card border border-rose-500/30">
+                        <div class="flex items-center gap-3 mb-6 pb-3 border-b border-dark-border">
+                            <div class="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 text-xl">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">AI Assistant Settings</h3>
+                                <p class="text-xs text-gray-400">আপনার সাইটের রিয়েল-টাইম কাস্টমার সাপোর্ট AI বটের নাম, API Key ও কালার থিম নিয়ন্ত্রণ করুন।</p>
+                            </div>
+                        </div>
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2 font-medium">AI Bot / Assistant Name *</label>
+                                <input type="text" id="set-ai-name" class="flat-input" placeholder="e.g. YASIN AI বা ST TOPUP AI">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2 font-medium">Google Gemini API Key *</label>
+                                <input type="password" id="set-ai-apikey" class="flat-input font-mono text-sm" placeholder="AI Studio থেকে নেওয়া API Key দিন">
+                                <small class="text-xs text-gray-500 mt-1 block">Google AI Studio (aistudio.google.com) থেকে ফ্রি API Key সংগ্রহ করুন।</small>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2 font-medium">AI Accent Theme Color (কালার কোড)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="color" id="set-ai-color-picker" value="#ff0033" class="w-14 h-12 p-1 bg-dark-bg border border-dark-border rounded-lg cursor-pointer" oninput="document.getElementById('set-ai-color').value = this.value">
+                                    <input type="text" id="set-ai-color" value="#ff0033" class="flat-input font-mono flex-1 text-sm font-bold uppercase" placeholder="#ff0033" oninput="document.getElementById('set-ai-color-picker').value = this.value">
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="saveSettings('ai')" class="flat-btn mt-6 w-full">
+                            <i class="fas fa-save mr-1"></i> Save AI Assistant Settings
+                        </button>
+                    </div>
+
                     <div class="card">
                         <h3 class="text-xl font-bold text-orange-500 mb-6 pb-3 border-b border-dark-border">Advanced Config</h3>
                         <div class="space-y-5">
@@ -876,7 +910,13 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-sm text-gray-400 mb-1 font-medium">Banner Image URL *</label>
-                            <input type="text" id="ban-img" placeholder="https://i.ibb.co/.../banner.jpg" class="flat-input">
+                            <div class="flex gap-2">
+                                <input type="text" id="ban-img" placeholder="https://i.ibb.co/.../banner.jpg" class="flat-input flex-1">
+                                <label class="flat-btn-outline cursor-pointer text-xs flex items-center px-3 py-2 whitespace-nowrap rounded-lg">
+                                    <i class="fas fa-upload mr-1"></i> আপলোড
+                                    <input type="file" accept="image/*" class="hidden" onchange="uploadDirectImageToImgbb(this, 'ban-img')">
+                                </label>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm text-gray-400 mb-1 font-medium">Target Link URL (ঐচ্ছিক)</label>
@@ -1546,6 +1586,17 @@
                     if(document.getElementById('set-rocket')) document.getElementById('set-rocket').value = d.Rocket || '';
                 }
             });
+            // AI Assistant সেটিংস লোড
+            db.collection('settings').doc('general').get().then(doc => {
+                if(doc.exists) {
+                    const d = doc.data();
+                    if(document.getElementById('set-ai-name')) document.getElementById('set-ai-name').value = d.aiName || 'YASIN';
+                    if(document.getElementById('set-ai-apikey')) document.getElementById('set-ai-apikey').value = d.aiApiKey || '';
+                    const aiCol = d.aiThemeColor || '#ff0033';
+                    if(document.getElementById('set-ai-color')) document.getElementById('set-ai-color').value = aiCol;
+                    if(document.getElementById('set-ai-color-picker')) document.getElementById('set-ai-color-picker').value = aiCol;
+                }
+            });
         }
 
         function saveSettings(type) {
@@ -1579,6 +1630,12 @@
                     bKash: document.getElementById('set-bkash').value,
                     Nagad: document.getElementById('set-nagad').value,
                     Rocket: document.getElementById('set-rocket').value
+                }, {merge: true});
+            } else if (type === 'ai') {
+                p1 = db.collection('settings').doc('general').set({
+                    aiName: document.getElementById('set-ai-name').value.trim() || 'YASIN',
+                    aiApiKey: document.getElementById('set-ai-apikey').value.trim(),
+                    aiThemeColor: document.getElementById('set-ai-color').value.trim() || '#ff0033'
                 }, {merge: true});
             } else if (type === 'advanced') {
                 p1 = db.collection('settings').doc('general').set({
@@ -2191,6 +2248,42 @@
             .then(r => {
                 if(r.isConfirmed) db.collection(collection).doc(id).delete();
             });
+        }
+
+        // 🚀 ডিভাইস থেকে সরাসরি ১ ক্লিকে ছবি আপলোড ও সুপারফাস্ট লিংক জেনারেটর
+        async function uploadDirectImageToImgbb(inputElement, targetInputId) {
+            const file = inputElement.files[0];
+            if (!file) return;
+
+            showLoading();
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                // ফ্রি হাই-স্পিড ইমেজ হোস্টিং API
+                const res = await fetch('https://api.imgbb.com/1/upload?key=64fca1456c68e8e7bbcaebcebe6ea6ba', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                hideLoading();
+
+                if (data && data.data && data.data.url) {
+                    document.getElementById(targetInputId).value = data.data.url;
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ছবি আপলোড সফল! 🚀',
+                        text: 'ছবির লিংকটি সফলভাবে বক্সে বসে গেছে।',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire('Error', 'ছবি আপলোড করতে ব্যর্থ হয়েছে!', 'error');
+                }
+            } catch (e) {
+                hideLoading();
+                Swal.fire('Error', e.message || 'ছবি আপলোডে সমস্যা হয়েছে', 'error');
+            }
         }
 
         // 🤖 টেলিগ্রাম বটের টেস্ট মেসেজ পাঠানোর ফাংশন
