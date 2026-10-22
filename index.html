@@ -185,6 +185,9 @@
             <a href="#" onclick="switchView('banners')" id="nav-banners" class="nav-link flex items-center px-4 py-3">
                 <i class="fas fa-image w-8 text-center"></i> Banners
             </a>
+            <a href="#" onclick="switchView('spin-editor')" id="nav-spin-editor" class="nav-link flex items-center px-4 py-3 text-amber-400">
+                <i class="fas fa-dharmachakra w-8 text-center"></i> Spin Wheel Editor
+            </a>
             <a href="#" onclick="switchView('onesignal')" id="nav-onesignal" class="nav-link flex items-center px-4 py-3">
                 <i class="fas fa-bell w-8 text-center"></i> Push Notification
             </a>
@@ -416,8 +419,30 @@
                             <option value="code">Voucher Code (Auto Delivery)</option>
                             <option value="auto-topup">Auto TopUp (API Delivery)</option>
                             <option value="guild-glory">👑 FF Guild Glory Bot (গিল্ড গ্লরি বট)</option>
+                            <option value="tiktok">🎵 TikTok Service (সোশ্যাল মিডিয়া)</option>
+                            <option value="social">🌐 Other Social Platform</option>
                         </select>
                     </div>
+                    
+                    <!-- Dynamic Input Type Selector for TikTok/FreeFire -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Required Input Type for User</label>
+                            <select id="srv-input-type" class="flat-input">
+                                <option value="uid">Player UID (Default FF)</option>
+                                <option value="video_link">TikTok / Social Video Link</option>
+                                <option value="username">TikTok / Social Username</option>
+                                <option value="profile_link">Social Profile Link</option>
+                                <option value="live_link">TikTok Live Stream Link</option>
+                                <option value="custom_comment">Custom Comments Textarea</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Input Hint / Placeholder Text</label>
+                            <input type="text" id="srv-input-hint" placeholder="e.g. এখানে আপনার ভিডিও লিংক দিন" class="flat-input">
+                        </div>
+                    </div>
+
                     <textarea id="srv-rules" placeholder="Rules/Instructions (One per line)" class="flat-input h-24 mb-5"></textarea>
                     <button onclick="addService()" class="flat-btn w-full">Add Service</button>
                 </div>
@@ -550,6 +575,120 @@
                         <thead><tr><th class="w-24 text-center">Thumbnail</th><th>Title</th><th>Link</th><th class="w-24 text-center">Actions</th></tr></thead>
                         <tbody id="tut-list"></tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- 🎡 ADVANCED SPIN WHEEL EDITOR VIEW -->
+            <div id="view-spin-editor" class="view-section hidden">
+                <div class="card mb-6 border border-amber-500/30">
+                    <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-dark-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 text-2xl">
+                                <i class="fas fa-dharmachakra"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Advanced Spin Wheel Editor</h3>
+                                <p class="text-xs text-gray-400">Signup Welcome Spin এবং Daily Free Spin-এর প্রতিটি স্লট, কালার ও উইনিং সম্ভাবনা নিয়ন্ত্রণ করুন।</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="switchAdminSpinTab('signup')" id="btn-admin-tab-signup" class="flat-btn text-xs py-2 px-4">🎁 Signup Spin</button>
+                            <button onclick="switchAdminSpinTab('daily')" id="btn-admin-tab-daily" class="flat-btn-outline text-xs py-2 px-4">⚡ Daily Free Spin</button>
+                        </div>
+                    </div>
+
+                    <!-- General Settings -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Wheel Title</label>
+                            <input type="text" id="admin-spin-title" class="flat-input">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Subtitle / Note</label>
+                            <input type="text" id="admin-spin-subtitle" class="flat-input">
+                        </div>
+                        <div class="flex items-center gap-3 pt-5">
+                            <input type="checkbox" id="admin-spin-enable" class="w-5 h-5 accent-amber-500 rounded">
+                            <label for="admin-spin-enable" class="text-sm font-bold text-white cursor-pointer">ফিচারটি সক্রিয় রাখুন (Enable)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <!-- Live Canvas Preview -->
+                    <div class="card flex flex-col items-center justify-center">
+                        <h4 class="text-sm font-bold text-gray-400 mb-4 uppercase tracking-wider">Live Wheel Preview</h4>
+                        <div class="relative w-64 h-64 flex items-center justify-center mb-4">
+                            <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[18px] border-t-amber-500"></div>
+                            <canvas id="admin-wheel-preview" width="260" height="260" class="rounded-full shadow-lg"></canvas>
+                        </div>
+                        <button onclick="testSpinAnimationAdmin()" class="flat-btn-outline text-xs py-2 px-4 w-full">
+                            <i class="fas fa-play mr-1"></i> টেস্ট স্পিন প্রিভিউ
+                        </button>
+                    </div>
+
+                    <!-- Slot Creator Form -->
+                    <div class="card xl:col-span-2">
+                        <h4 class="text-sm font-bold text-amber-500 mb-4 uppercase tracking-wider">নতুন স্লট যুক্ত / এডিট করুন</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">স্লট লেবেল (Label)*</label>
+                                <input type="text" id="slot-label" placeholder="e.g. ৳১০ অথবা 50 Diamond" class="flat-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">স্লট ব্যাকগ্রাউন্ড কালার</label>
+                                <div class="flex gap-2">
+                                    <input type="color" id="slot-color-picker" value="#EF4444" class="w-12 h-10 p-1 bg-dark-bg border border-dark-border rounded cursor-pointer" oninput="document.getElementById('slot-color-text').value = this.value">
+                                    <input type="text" id="slot-color-text" value="#EF4444" class="flat-input flex-1 font-mono text-xs uppercase" oninput="document.getElementById('slot-color-picker').value = this.value">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">পুরস্কারের ধরন (Reward Type)</label>
+                                <select id="slot-reward-type" class="flat-input" onchange="toggleRewardTypeFieldsAdmin(this.value)">
+                                    <option value="wallet">Wallet Balance (টাকা)</option>
+                                    <option value="free_diamond_wallet">Free Diamond (Wallet Equivalent)</option>
+                                    <option value="free_diamond_topup">Free Diamond (Free Order Claim)</option>
+                                    <option value="discount_coupon">Discount Coupon</option>
+                                    <option value="try_again">No Reward / Try Again</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">পুরস্কারের পরিমাণ (Value / Tk)</label>
+                                <input type="number" id="slot-reward-val" placeholder="e.g. 10" class="flat-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">উইনিং সম্ভাবনা / Weight (1-100)*</label>
+                                <input type="number" id="slot-weight" placeholder="e.g. 20" value="20" class="flat-input">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="saveAdminSlotItem()" class="flat-btn w-full">
+                                    <i class="fas fa-plus mr-1"></i> স্লট সেভ করুন
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Slots List Table -->
+                        <div class="flat-table-container mt-6">
+                            <table class="flat-table text-xs">
+                                <thead>
+                                    <tr>
+                                        <th>Color</th>
+                                        <th>Label</th>
+                                        <th>Reward Type</th>
+                                        <th>Value</th>
+                                        <th>Weight</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-spin-slots-table">
+                                    <tr><td colspan="6" class="text-center py-4 text-gray-500">কোনো স্লট পাওয়া যায়নি</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -978,6 +1117,9 @@
             if(viewId === 'unpin') loadUnpinCodes();
             if(viewId === 'tutorials') loadTutorials();
             if(viewId === 'banners') loadBanners();
+            if(viewId === 'spin-editor') {
+                loadSpinWheelAdminSettings();
+            }
             if(viewId === 'onesignal') {
                 loadOneSignalConfigAdmin();
                 loadAdminNotificationsList();
@@ -1478,17 +1620,174 @@
             const catId = document.getElementById('srv-category').value;
             const type = document.getElementById('srv-type').value;
             const rules = document.getElementById('srv-rules').value;
+            const inputType = document.getElementById('srv-input-type')?.value || 'uid';
+            const inputHint = document.getElementById('srv-input-hint')?.value || '';
+
             if(!name || !catId) return Swal.fire('Error', 'Name and Category required', 'error');
             showLoading();
-            db.collection('services').add({name, image, categoryId: catId, type, rules}).then(() => {
+            db.collection('services').add({
+                name, image, categoryId: catId, type, rules, inputType, inputHint, createdAt: new Date()
+            }).then(() => {
                 hideLoading();
                 document.getElementById('srv-name').value = '';
                 document.getElementById('srv-image').value = '';
                 document.getElementById('srv-rules').value = '';
+                if(document.getElementById('srv-input-hint')) document.getElementById('srv-input-hint').value = '';
+                Swal.fire({ icon: 'success', title: 'সার্ভিস সফলভাবে তৈরি হয়েছে!', timer: 1200, showConfirmButton: false });
             }).catch(err => {
                 hideLoading();
                 Swal.fire('Error', err.message, 'error');
             });
+        }
+
+        // =========================================================================
+        // 🎡 ADVANCED SPIN WHEEL ADMIN CONTROLLER
+        // =========================================================================
+        let adminActiveSpinTab = 'signup';
+        let adminSpinData = {
+            signup: { enabled: true, title: "Spin & Win", subtitle: "স্পিন করুন, ওয়ালেটে বোনাস নিন — প্রতি অ্যাকাউন্টে একবার।", slots: [] },
+            daily: { enabled: true, title: "Daily Free Spin", subtitle: "প্রতি ২৪ ঘণ্টায় একবার ফ্রি স্পিন করে বোনাস জিতুন!", slots: [] }
+        };
+
+        function switchAdminSpinTab(tab) {
+            adminActiveSpinTab = tab;
+            const btnSignup = document.getElementById('btn-admin-tab-signup');
+            const btnDaily = document.getElementById('btn-admin-tab-daily');
+            if (tab === 'signup') {
+                btnSignup.className = "flat-btn text-xs py-2 px-4";
+                btnDaily.className = "flat-btn-outline text-xs py-2 px-4";
+            } else {
+                btnDaily.className = "flat-btn text-xs py-2 px-4";
+                btnSignup.className = "flat-btn-outline text-xs py-2 px-4";
+            }
+            renderAdminSpinUI();
+        }
+
+        function loadSpinWheelAdminSettings() {
+            db.collection('settings').doc('spin_wheel').get().then(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    if(data.signup) adminSpinData.signup = { ...adminSpinData.signup, ...data.signup };
+                    if(data.daily) adminSpinData.daily = { ...adminSpinData.daily, ...data.daily };
+                }
+                renderAdminSpinUI();
+            });
+        }
+
+        function renderAdminSpinUI() {
+            const config = adminSpinData[adminActiveSpinTab];
+            document.getElementById('admin-spin-title').value = config.title || '';
+            document.getElementById('admin-spin-subtitle').value = config.subtitle || '';
+            document.getElementById('admin-spin-enable').checked = config.enabled !== false;
+
+            const table = document.getElementById('admin-spin-slots-table');
+            table.innerHTML = '';
+
+            const slots = config.slots || [];
+            if (slots.length === 0) {
+                table.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-500">কোনো স্লট যোগ করা হয়নি। ডিফল্ট স্লট ব্যবহার হচ্ছে।</td></tr>`;
+            } else {
+                slots.forEach((s, idx) => {
+                    table.innerHTML += `
+                        <tr>
+                            <td><span class="w-4 h-4 rounded-full inline-block border border-white/40" style="background:${s.color}"></span></td>
+                            <td class="font-bold text-white">${s.label}</td>
+                            <td><span class="px-2 py-0.5 rounded uppercase text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">${s.rewardType}</span></td>
+                            <td>${s.rewardValue || '0'}</td>
+                            <td>${s.weight || '10'}</td>
+                            <td class="text-center">
+                                <button onclick="deleteAdminSlotItem(${idx})" class="flat-btn flat-btn-danger text-xs py-1 px-2.5"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>`;
+                });
+            }
+            drawAdminCanvasPreview();
+        }
+
+        function drawAdminCanvasPreview() {
+            const canvas = document.getElementById('admin-wheel-preview');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const slots = (adminSpinData[adminActiveSpinTab].slots && adminSpinData[adminActiveSpinTab].slots.length >= 2) 
+                ? adminSpinData[adminActiveSpinTab].slots 
+                : [
+                    { label: "৳১", color: "#EF4444" }, { label: "৳২", color: "#F97316" },
+                    { label: "৳৩", color: "#EAB308" }, { label: "৳৪", color: "#10B981" },
+                    { label: "৳৫", color: "#06B6D4" }
+                ];
+
+            const num = slots.length;
+            const arc = (2 * Math.PI) / num;
+            const r = canvas.width / 2;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(r, r);
+
+            for(let i = 0; i < num; i++) {
+                const angle = i * arc;
+                ctx.beginPath();
+                ctx.fillStyle = slots[i].color || '#F49E0B';
+                ctx.moveTo(0,0);
+                ctx.arc(0, 0, r - 3, angle, angle + arc);
+                ctx.lineTo(0,0);
+                ctx.fill();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.stroke();
+
+                ctx.save();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = 'right';
+                ctx.fillText(slots[i].label, r - 15, 4);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        function saveAdminSlotItem() {
+            const label = document.getElementById('slot-label').value.trim();
+            const color = document.getElementById('slot-color-text').value.trim();
+            const rewardType = document.getElementById('slot-reward-type').value;
+            const rewardVal = parseFloat(document.getElementById('slot-reward-val').value) || 0;
+            const weight = parseInt(document.getElementById('slot-weight').value) || 10;
+
+            if(!label) return Swal.fire('Error', 'স্লট লেবেল লিখুন', 'warning');
+
+            if(!adminSpinData[adminActiveSpinTab].slots) adminSpinData[adminActiveSpinTab].slots = [];
+            adminSpinData[adminActiveSpinTab].slots.push({
+                label, color, rewardType, rewardValue: rewardVal, weight, active: true
+            });
+
+            syncSpinSettingsToFirebase();
+            document.getElementById('slot-label').value = '';
+        }
+
+        function deleteAdminSlotItem(index) {
+            adminSpinData[adminActiveSpinTab].slots.splice(index, 1);
+            syncSpinSettingsToFirebase();
+        }
+
+        function syncSpinSettingsToFirebase() {
+            adminSpinData[adminActiveSpinTab].title = document.getElementById('admin-spin-title').value.trim();
+            adminSpinData[adminActiveSpinTab].subtitle = document.getElementById('admin-spin-subtitle').value.trim();
+            adminSpinData[adminActiveSpinTab].enabled = document.getElementById('admin-spin-enable').checked;
+
+            db.collection('settings').doc('spin_wheel').set(adminSpinData, { merge: true }).then(() => {
+                renderAdminSpinUI();
+            });
+        }
+
+        function testSpinAnimationAdmin() {
+            const canvas = document.getElementById('admin-wheel-preview');
+            canvas.style.transition = 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+            canvas.style.transform = `rotate(${1440 + Math.random() * 360}deg)`;
+            setTimeout(() => {
+                canvas.style.transition = 'none';
+                canvas.style.transform = 'rotate(0deg)';
+            }, 3200);
         }
 
         function loadProducts() {
