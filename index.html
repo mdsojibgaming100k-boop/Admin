@@ -728,9 +728,12 @@
                                 <label class="block text-xs text-gray-400 mb-1">উইনিং সম্ভাবনা / Weight (1-100)*</label>
                                 <input type="number" id="slot-weight" placeholder="e.g. 20" value="20" class="flat-input">
                             </div>
-                            <div class="flex items-end">
-                                <button onclick="saveAdminSlotItem()" class="flat-btn w-full">
+                            <div class="flex items-end gap-2">
+                                <button onclick="saveAdminSlotItem()" id="btn-save-slot-action" class="flat-btn w-full">
                                     <i class="fas fa-plus mr-1"></i> স্লট সেভ করুন
+                                </button>
+                                <button onclick="cancelAdminSlotEdit()" id="btn-cancel-slot-edit" type="button" class="flat-btn flat-btn-outline hidden whitespace-nowrap text-xs py-3 px-3">
+                                    বাতিল
                                 </button>
                             </div>
                         </div>
@@ -1745,6 +1748,9 @@
         // 🎡 ADVANCED SPIN WHEEL ADMIN CONTROLLER
         // =========================================================================
         let adminActiveSpinTab = 'signup';
+        let adminEditingSlotIndex = -1;
+        let adminAccumulatedAngle = 0;
+
         let adminSpinData = {
             signup: { enabled: true, title: "Spin & Win", subtitle: "স্পিন করুন, ওয়ালেটে বোনাস নিন — প্রতি অ্যাকাউন্টে একবার।", slots: [] },
             daily: { enabled: true, title: "Daily Free Spin", subtitle: "প্রতি ২৪ ঘণ্টায় একবার ফ্রি স্পিন করে বোনাস জিতুন!", slots: [] }
@@ -1752,6 +1758,7 @@
 
         function switchAdminSpinTab(tab) {
             adminActiveSpinTab = tab;
+            cancelAdminSlotEdit();
             const btnSignup = document.getElementById('btn-admin-tab-signup');
             const btnDaily = document.getElementById('btn-admin-tab-daily');
             if (tab === 'signup') {
@@ -1789,15 +1796,21 @@
                 table.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-500">কোনো স্লট যোগ করা হয়নি। ডিফল্ট স্লট ব্যবহার হচ্ছে।</td></tr>`;
             } else {
                 slots.forEach((s, idx) => {
+                    const isEditing = (adminEditingSlotIndex === idx);
                     table.innerHTML += `
-                        <tr>
+                        <tr class="${isEditing ? 'bg-amber-500/15 border-l-4 border-amber-500' : ''}">
                             <td><span class="w-4 h-4 rounded-full inline-block border border-white/40" style="background:${s.color}"></span></td>
                             <td class="font-bold text-white">${s.label}</td>
                             <td><span class="px-2 py-0.5 rounded uppercase text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">${s.rewardType}</span></td>
-                            <td>${s.rewardValue || '0'}</td>
+                            <td>${s.rewardValue !== undefined ? s.rewardValue : '0'}</td>
                             <td>${s.weight || '10'}</td>
-                            <td class="text-center">
-                                <button onclick="deleteAdminSlotItem(${idx})" class="flat-btn flat-btn-danger text-xs py-1 px-2.5"><i class="fas fa-trash"></i></button>
+                            <td class="text-center space-x-1 whitespace-nowrap">
+                                <button onclick="editAdminSlotItem(${idx})" class="flat-btn text-xs py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700" title="স্লট এডিট করুন">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteAdminSlotItem(${idx})" class="flat-btn flat-btn-danger text-xs py-1.5 px-2.5" title="স্লট ডিলিট করুন">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </td>
                         </tr>`;
                 });
@@ -1848,9 +1861,62 @@
             ctx.restore();
         }
 
+        // ✏️ স্লট এডিট মোড চালু
+        function editAdminSlotItem(index) {
+            const slots = adminSpinData[adminActiveSpinTab].slots;
+            if (!slots || !slots[index]) return;
+
+            adminEditingSlotIndex = index;
+            const s = slots[index];
+
+            document.getElementById('slot-label').value = s.label || '';
+            document.getElementById('slot-color-picker').value = s.color || '#EF4444';
+            document.getElementById('slot-color-text').value = s.color || '#EF4444';
+            document.getElementById('slot-reward-type').value = s.rewardType || 'wallet';
+            document.getElementById('slot-reward-val').value = s.rewardValue !== undefined ? s.rewardValue : '';
+            document.getElementById('slot-weight').value = s.weight || 20;
+
+            const saveBtn = document.getElementById('btn-save-slot-action');
+            if (saveBtn) {
+                saveBtn.innerHTML = `<i class="fas fa-save mr-1"></i> আপডেট করুন`;
+                saveBtn.classList.remove('bg-orange-500');
+                saveBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            }
+
+            const cancelBtn = document.getElementById('btn-cancel-slot-edit');
+            if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+            renderAdminSpinUI();
+            document.getElementById('slot-label').focus();
+        }
+
+        // ❌ স্লট এডিট বাতিল
+        function cancelAdminSlotEdit() {
+            adminEditingSlotIndex = -1;
+            document.getElementById('slot-label').value = '';
+            document.getElementById('slot-color-picker').value = '#EF4444';
+            document.getElementById('slot-color-text').value = '#EF4444';
+            document.getElementById('slot-reward-type').value = 'wallet';
+            document.getElementById('slot-reward-val').value = '';
+            document.getElementById('slot-weight').value = '20';
+
+            const saveBtn = document.getElementById('btn-save-slot-action');
+            if (saveBtn) {
+                saveBtn.innerHTML = `<i class="fas fa-plus mr-1"></i> স্লট সেভ করুন`;
+                saveBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                saveBtn.classList.add('bg-orange-500');
+            }
+
+            const cancelBtn = document.getElementById('btn-cancel-slot-edit');
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+
+            renderAdminSpinUI();
+        }
+
+        // 💾 নতুন স্লট তৈরি অথবা পুরাতন স্লট আপডেট সংরক্ষণ
         function saveAdminSlotItem() {
             const label = document.getElementById('slot-label').value.trim();
-            const color = document.getElementById('slot-color-text').value.trim();
+            const color = document.getElementById('slot-color-text').value.trim() || '#EF4444';
             const rewardType = document.getElementById('slot-reward-type').value;
             const rewardVal = parseFloat(document.getElementById('slot-reward-val').value) || 0;
             const weight = parseInt(document.getElementById('slot-weight').value) || 10;
@@ -1858,17 +1924,38 @@
             if(!label) return Swal.fire('Error', 'স্লট লেবেল লিখুন', 'warning');
 
             if(!adminSpinData[adminActiveSpinTab].slots) adminSpinData[adminActiveSpinTab].slots = [];
-            adminSpinData[adminActiveSpinTab].slots.push({
-                label, color, rewardType, rewardValue: rewardVal, weight, active: true
-            });
+
+            if (adminEditingSlotIndex >= 0 && adminEditingSlotIndex < adminSpinData[adminActiveSpinTab].slots.length) {
+                adminSpinData[adminActiveSpinTab].slots[adminEditingSlotIndex] = {
+                    label, color, rewardType, rewardValue: rewardVal, weight, active: true
+                };
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'স্লট আপডেট সম্পন্ন!', timer: 1200, showConfirmButton: false });
+            } else {
+                adminSpinData[adminActiveSpinTab].slots.push({
+                    label, color, rewardType, rewardValue: rewardVal, weight, active: true
+                });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'নতুন স্লট যোগ হয়েছে!', timer: 1200, showConfirmButton: false });
+            }
 
             syncSpinSettingsToFirebase();
-            document.getElementById('slot-label').value = '';
+            cancelAdminSlotEdit();
         }
 
         function deleteAdminSlotItem(index) {
-            adminSpinData[adminActiveSpinTab].slots.splice(index, 1);
-            syncSpinSettingsToFirebase();
+            Swal.fire({
+                title: 'স্লট ডিলিট করবেন?',
+                text: 'এই স্লটটি চাকা থেকে স্থায়ীভাবে মুছে ফেলা হবে।',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#DC2626',
+                confirmButtonText: 'হ্যাঁ, মুছুন'
+            }).then(r => {
+                if (r.isConfirmed) {
+                    if (adminEditingSlotIndex === index) cancelAdminSlotEdit();
+                    adminSpinData[adminActiveSpinTab].slots.splice(index, 1);
+                    syncSpinSettingsToFirebase();
+                }
+            });
         }
 
         function syncSpinSettingsToFirebase() {
@@ -1881,14 +1968,14 @@
             });
         }
 
+        // 🎯 টেস্ট স্পিন (কোনো ঝাঁকুনি বা ০ ডিগ্রিতে লাফানো ছাড়া মসৃণভাবে ঘুরবে)
         function testSpinAnimationAdmin() {
             const canvas = document.getElementById('admin-wheel-preview');
-            canvas.style.transition = 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
-            canvas.style.transform = `rotate(${1440 + Math.random() * 360}deg)`;
-            setTimeout(() => {
-                canvas.style.transition = 'none';
-                canvas.style.transform = 'rotate(0deg)';
-            }, 3200);
+            if (!canvas) return;
+
+            adminAccumulatedAngle += (360 * 5) + Math.floor(Math.random() * 360);
+            canvas.style.transition = 'transform 3.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            canvas.style.transform = `rotate(${adminAccumulatedAngle}deg)`;
         }
 
         function loadProducts() {
