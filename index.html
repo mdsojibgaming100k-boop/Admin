@@ -339,6 +339,37 @@
                         <button onclick="saveSettings('social')" class="flat-btn mt-6 w-full">Save Social Links</button>
                     </div>
 
+                    <!-- 🤖 TELEGRAM NOTIFICATION BOT SETTINGS -->
+                    <div class="card border border-sky-500/30">
+                        <div class="flex items-center gap-3 mb-6 pb-3 border-b border-dark-border">
+                            <div class="w-10 h-10 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl">
+                                <i class="fab fa-telegram-plane"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Telegram Alert Bot</h3>
+                                <p class="text-xs text-gray-400">অর্ডার ও ডিপোজিটের লাইভ মেসেজ আপনার টেলিগ্রাম বটের মাধ্যমে পেতে টোকেন ও চ্যাট আইডি দিন।</p>
+                            </div>
+                        </div>
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2 font-medium">Telegram Bot Token *</label>
+                                <input type="text" id="set-tg-bot-token" class="flat-input font-mono text-sm" placeholder="8694471350:AAGXNSPvjPsSEWyO0L3tkhFshr6dh8mYkR0">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2 font-medium">Telegram Admin Chat ID *</label>
+                                <input type="text" id="set-tg-chat-id" class="flat-input font-mono text-sm" placeholder="7153773488">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                            <button onclick="saveSettings('telegram_bot')" class="flat-btn w-full">
+                                <i class="fas fa-save mr-1"></i> Save Bot Settings
+                            </button>
+                            <button onclick="testTelegramBotAlertAdmin()" class="flat-btn-outline w-full py-2.5">
+                                <i class="fas fa-paper-plane mr-1"></i> টেস্ট মেসেজ পাঠান
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="card">
                         <h3 class="text-xl font-bold text-orange-500 mb-6 pb-3 border-b border-dark-border">Payment Admin Numbers</h3>
                         <div class="space-y-5">
@@ -1486,6 +1517,14 @@
                     if(document.getElementById('set-telegram')) document.getElementById('set-telegram').value = d.telegram || '';
                     if(document.getElementById('set-facebook')) document.getElementById('set-facebook').value = d.facebook || '';
                     if(document.getElementById('set-youtube')) document.getElementById('set-youtube').value = d.youtube || '';
+                    
+                    // টেলিগ্রাম বট সেটিংস লোড (ডিফল্ট ফলব্যাক সহ)
+                    if(document.getElementById('set-tg-bot-token')) {
+                        document.getElementById('set-tg-bot-token').value = d.telegramBotToken || '8694471350:AAGXNSPvjPsSEWyO0L3tkhFshr6dh8mYkR0';
+                    }
+                    if(document.getElementById('set-tg-chat-id')) {
+                        document.getElementById('set-tg-chat-id').value = d.telegramChatId || '7153773488';
+                    }
                     if(document.getElementById('set-promo-img')) document.getElementById('set-promo-img').value = d.promoImageUrl || '';
                     if(document.getElementById('set-promo-link')) document.getElementById('set-promo-link').value = d.promoImageLink || '';
                     if(document.getElementById('set-autopay')) document.getElementById('set-autopay').checked = d.autoPayEnabled || false;
@@ -1529,6 +1568,11 @@
                     telegram: document.getElementById('set-telegram').value,
                     facebook: document.getElementById('set-facebook').value,
                     youtube: document.getElementById('set-youtube').value
+                }, {merge: true});
+            } else if (type === 'telegram_bot') {
+                p1 = db.collection('settings').doc('general').set({
+                    telegramBotToken: document.getElementById('set-tg-bot-token').value.trim(),
+                    telegramChatId: document.getElementById('set-tg-chat-id').value.trim()
                 }, {merge: true});
             } else if (type === 'payment') {
                 p1 = db.collection('admin').doc('payment').set({
@@ -2147,6 +2191,46 @@
             .then(r => {
                 if(r.isConfirmed) db.collection(collection).doc(id).delete();
             });
+        }
+
+        // 🤖 টেলিগ্রাম বটের টেস্ট মেসেজ পাঠানোর ফাংশন
+        async function testTelegramBotAlertAdmin() {
+            const token = document.getElementById('set-tg-bot-token')?.value.trim();
+            const chatId = document.getElementById('set-tg-chat-id')?.value.trim();
+
+            if (!token || !chatId) {
+                return Swal.fire('Error', 'Bot Token এবং Chat ID উভয়ই প্রদান করুন!', 'warning');
+            }
+
+            showLoading();
+            const testMsg = `🤖 <b>ST TOP-UP টেস্ট নোটিফিকেশন!</b>\n━━━━━━━━━━━━━━━━━━\nআপনার টেলিগ্রাম নোটিফিকেশন বট সফলভাবে কানেক্ট হয়েছে।\nএখন থেকে সকল অর্ডার, ডিপোজিট ও ইউজার তথ্য এই চ্যাটে স্বয়ংক্রিয়ভাবে আসবে! ✅\n━━━━━━━━━━━━━━━━━━\n⏰ <b>সময়:</b> ${new Date().toLocaleString()}`;
+
+            try {
+                const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: testMsg,
+                        parse_mode: 'HTML'
+                    })
+                });
+                const resData = await res.json();
+                hideLoading();
+
+                if (resData.ok) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'টেস্ট সফল হয়েছে! 🚀',
+                        text: 'আপনার টেলিগ্রামে একটি টেস্ট মেসেজ চলে গেছে। টেলিগ্রাম চেক করুন!'
+                    });
+                } else {
+                    Swal.fire('Failed', `টেলিগ্রাম এরর: ${resData.description}`, 'error');
+                }
+            } catch(e) {
+                hideLoading();
+                Swal.fire('Error', e.message || 'মেসেজ পাঠানো সম্ভব হয়নি', 'error');
+            }
         }
 
         async function testOtpMail() {
