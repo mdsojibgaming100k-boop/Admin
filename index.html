@@ -304,7 +304,16 @@
                         <h3 class="text-xl font-bold text-orange-500 mb-6 pb-3 border-b border-dark-border">General Info</h3>
                         <div class="space-y-5">
                             <div><label class="block text-sm text-gray-400 mb-2 font-medium">Site Name</label><input type="text" id="set-sitename" class="flat-input"></div>
-                            <div><label class="block text-sm text-gray-400 mb-2 font-medium">Logo URL</label><input type="text" id="set-logo" class="flat-input"></div>
+                            <div>
+    <label class="block text-sm text-gray-400 mb-2 font-medium">Logo URL</label>
+    <div class="flex gap-2">
+        <input type="text" id="set-logo" placeholder="Logo Image URL" class="flat-input flex-1">
+        <label class="flat-btn-outline cursor-pointer text-xs flex items-center px-3 py-2 whitespace-nowrap rounded-lg">
+            <i class="fas fa-upload mr-1"></i> আপলোড
+            <input type="file" accept="image/*" class="hidden" onchange="uploadDirectImageToImgbb(this, 'set-logo')">
+        </label>
+    </div>
+</div>
                             
                             <!-- 🎨 USER APP THEME COLOR PICKER -->
                             <div>
@@ -420,7 +429,13 @@
                             <div><label class="block text-sm text-gray-400 mb-2 font-medium">How To Add Money (YouTube Video ID)</label><input type="text" id="set-tutorial-vid" class="flat-input" placeholder="e.g. dQw4w9WgXcQ"></div>
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2 font-medium">Promo Image URL</label>
-                                <input type="text" id="set-promo-img" class="flat-input">
+                                <div class="flex gap-2">
+                                    <input type="text" id="set-promo-img" placeholder="Promo Image URL" class="flat-input flex-1">
+                                    <label class="flat-btn-outline cursor-pointer text-xs flex items-center px-3 py-2 whitespace-nowrap rounded-lg">
+                                        <i class="fas fa-upload mr-1"></i> আপলোড
+                                        <input type="file" accept="image/*" class="hidden" onchange="uploadDirectImageToImgbb(this, 'set-promo-img')">
+                                    </label>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2 font-medium">Promo Link</label>
@@ -475,7 +490,13 @@
                     <h3 class="text-xl font-bold text-orange-500 mb-6">Add New Service/Game</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                         <input type="text" id="srv-name" placeholder="Service Name" class="flat-input">
-                        <input type="text" id="srv-image" placeholder="Image URL" class="flat-input">
+                        <div class="flex gap-2">
+                            <input type="text" id="srv-image" placeholder="Image URL" class="flat-input flex-1">
+                            <label class="flat-btn-outline cursor-pointer text-xs flex items-center px-3 py-2 whitespace-nowrap rounded-lg">
+                                <i class="fas fa-upload mr-1"></i> আপলোড
+                                <input type="file" accept="image/*" class="hidden" onchange="uploadDirectImageToImgbb(this, 'srv-image')">
+                            </label>
+                        </div>
                         <select id="srv-category" class="flat-input">
                             <option value="">Select Category</option>
                         </select>
@@ -631,7 +652,13 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                         <input type="text" id="tut-title" placeholder="Tutorial Title" class="flat-input">
                         <input type="text" id="tut-link" placeholder="Video Link URL" class="flat-input">
-                        <input type="text" id="tut-thumb" placeholder="Thumbnail Image URL" class="flat-input">
+                        <div class="flex gap-2">
+                            <input type="text" id="tut-thumb" placeholder="Thumbnail Image URL" class="flat-input flex-1">
+                            <label class="flat-btn-outline cursor-pointer text-xs flex items-center px-3 py-2 whitespace-nowrap rounded-lg">
+                                <i class="fas fa-upload mr-1"></i> আপলোড
+                                <input type="file" accept="image/*" class="hidden" onchange="uploadDirectImageToImgbb(this, 'tut-thumb')">
+                            </label>
+                        </div>
                     </div>
                     <button onclick="addTutorial()" class="flat-btn w-full">Add Tutorial</button>
                 </div>
@@ -854,7 +881,13 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2 font-medium">Banner Image URL (Optional)</label>
-                                <input type="url" id="os-push-image" class="flat-input" placeholder="https://i.ibb.co/..." oninput="previewOsImage(this.value)">
+                                <div class="flex gap-2">
+                                    <input type="url" id="os-push-image" class="flat-input flex-1" placeholder="https://i.ibb.co/..." oninput="previewOsImage(this.value)">
+                                    <label class="flat-btn-outline cursor-pointer text-xs flex items-center px-3 py-2 whitespace-nowrap rounded-lg">
+                                        <i class="fas fa-upload mr-1"></i> আপলোড
+                                        <input type="file" accept="image/*" class="hidden" onchange="uploadDirectImageToImgbb(this, 'os-push-image')">
+                                    </label>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2 font-medium">Target Link URL (Optional)</label>
@@ -2356,7 +2389,11 @@
                 hideLoading();
 
                 if (data && data.data && data.data.url) {
-                    document.getElementById(targetInputId).value = data.data.url;
+                    const uploadedUrl = data.data.url;
+                    document.getElementById(targetInputId).value = uploadedUrl;
+                    if (targetInputId === 'os-push-image' && typeof previewOsImage === 'function') {
+                        previewOsImage(uploadedUrl);
+                    }
                     Swal.fire({
                         icon: 'success',
                         title: 'ছবি আপলোড সফল! 🚀',
