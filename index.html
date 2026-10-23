@@ -2370,69 +2370,54 @@
             });
         }
 
-        // 🖼️ নিখুঁত অটো-রিসাইজ ও অটো-ফিট হেল্পার (Base64 আউটপুট - মোবাইলে ১০০% নির্ভরযোগ্য)
+        // 🖼️ নিখুঁত অটো-রিসাইজ ও সাইজ অপ্টিমাইজার (মাপমতো ক্রপ ও কম্প্রেস করে)
         function resizeAndFitImageBase64(file, targetWidth, targetHeight, keepRatio = false) {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 const reader = new FileReader();
-                reader.onerror = () => reject(new Error("ফাইল পড়া সম্ভব হয়নি"));
+                reader.readAsDataURL(file);
                 reader.onload = (e) => {
                     const img = new Image();
-                    img.onerror = () => reject(new Error("ছবিটি লোড করা যায়নি"));
                     img.onload = () => {
-                        try {
-                            const canvas = document.createElement('canvas');
-                            const ctx = canvas.getContext('2d');
-                            const isPng = file.type === 'image/png' || (file.name && file.name.toLowerCase().endsWith('.png'));
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const isPng = file.type === 'image/png' || (file.name && file.name.toLowerCase().endsWith('.png'));
 
-                            if (keepRatio) {
-                                // লোগোর ক্ষেত্রে অনুপাত বজায় রাখা
-                                let w = img.width;
-                                let h = img.height;
-                                if (w > targetWidth) {
-                                    h = Math.round((targetWidth / w) * h);
-                                    w = targetWidth;
-                                }
-                                if (h > targetHeight) {
-                                    w = Math.round((targetHeight / h) * w);
-                                    h = targetHeight;
-                                }
-                                canvas.width = w;
-                                canvas.height = h;
-                                ctx.drawImage(img, 0, 0, w, h);
+                        if (keepRatio) {
+                            let w = img.width, h = img.height;
+                            if (w > targetWidth) { h = Math.round((targetWidth / w) * h); w = targetWidth; }
+                            if (h > targetHeight) { w = Math.round((targetHeight / h) * w); h = targetHeight; }
+                            canvas.width = w;
+                            canvas.height = h;
+                            ctx.drawImage(img, 0, 0, w, h);
+                        } else {
+                            canvas.width = targetWidth;
+                            canvas.height = targetHeight;
+                            const imgRatio = img.width / img.height;
+                            const targetRatio = targetWidth / targetHeight;
+                            let srcX = 0, srcY = 0, srcW = img.width, srcH = img.height;
+
+                            if (imgRatio > targetRatio) {
+                                srcW = img.height * targetRatio;
+                                srcX = (img.width - srcW) / 2;
                             } else {
-                                // ব্যানার ও গেম আইকনের ক্ষেত্রে Center-Crop (চ্যাপ্টা হবে না)
-                                canvas.width = targetWidth;
-                                canvas.height = targetHeight;
-                                const imgRatio = img.width / img.height;
-                                const targetRatio = targetWidth / targetHeight;
-                                let srcX = 0, srcY = 0, srcW = img.width, srcH = img.height;
-
-                                if (imgRatio > targetRatio) {
-                                    srcW = img.height * targetRatio;
-                                    srcX = (img.width - srcW) / 2;
-                                } else {
-                                    srcH = img.width / targetRatio;
-                                    srcY = (img.height - srcH) / 2;
-                                }
-                                ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
+                                srcH = img.width / targetRatio;
+                                srcY = (img.height - srcH) / 2;
                             }
-
-                            // লোগো হলে ট্রান্সপারেন্ট PNG ঠিক থাকবে, অন্যথায় হালকা JPEG
-                            const mime = (keepRatio && isPng) ? 'image/png' : 'image/jpeg';
-                            const dataUrl = canvas.toDataURL(mime, 0.88);
-                            const cleanBase64 = dataUrl.split(',')[1];
-                            resolve(cleanBase64);
-                        } catch(err) {
-                            reject(err);
+                            ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
                         }
+
+                        const mime = (keepRatio && isPng) ? 'image/png' : 'image/jpeg';
+                        const dataUrl = canvas.toDataURL(mime, 0.88);
+                        resolve(dataUrl.split(',')[1]);
                     };
+                    img.onerror = () => resolve(null);
                     img.src = e.target.result;
                 };
-                reader.readAsDataURL(file);
+                reader.onerror = () => resolve(null);
             });
         }
 
-        // 🚀 ডিভাইস থেকে সরাসরি স্মার্ট অটো-ফিট সহ ১০০% সফল আপলোড
+        // 🚀 আপনার নিজস্ব ImgBB API Key দিয়ে সরাসরি ও দ্রুত ছবি আপলোড
         async function uploadDirectImageToImgbb(inputElement, targetInputId) {
             const file = inputElement.files && inputElement.files[0];
             if (!file) return;
@@ -2440,58 +2425,38 @@
             showLoading();
 
             try {
-                let base64Image = '';
+                // ১. প্রয়োজনীয় মাপ অনুযায়ী অটো রিসাইজ
+                let base64Clean = '';
                 if (targetInputId === 'ban-img') {
-                    // স্লাইডার ব্যানার (১০৫০ × ৪৫০)
-                    base64Image = await resizeAndFitImageBase64(file, 1050, 450, false);
+                    base64Clean = await resizeAndFitImageBase64(file, 1050, 450, false);
                 } else if (targetInputId === 'srv-image') {
-                    // গেম এবং সার্ভিসের আইকন (৫০০ × ৫০০ চারকোনা স্কয়ার)
-                    base64Image = await resizeAndFitImageBase64(file, 500, 500, false);
+                    base64Clean = await resizeAndFitImageBase64(file, 500, 500, false);
                 } else if (targetInputId === 'tut-thumb' || targetInputId === 'os-push-image' || targetInputId === 'set-promo-img') {
-                    // ভিডিও থাম্বনেইল ও প্রোমো ব্যানার (১৬:৯ - ৮০০ × ৪৫০)
-                    base64Image = await resizeAndFitImageBase64(file, 800, 450, false);
+                    base64Clean = await resizeAndFitImageBase64(file, 800, 450, false);
                 } else if (targetInputId === 'set-logo') {
-                    // ওয়েবসাইটের মূল লোগো (ম্যাক্সিমাম ৪০০ × ১৬০, ট্রান্সপারেন্ট পিএনজি সাপোর্ট)
-                    base64Image = await resizeAndFitImageBase64(file, 400, 160, true);
+                    base64Clean = await resizeAndFitImageBase64(file, 400, 160, true);
                 } else {
-                    base64Image = await resizeAndFitImageBase64(file, 800, 800, true);
+                    base64Clean = await resizeAndFitImageBase64(file, 600, 600, true);
                 }
 
-                // একাধিক ব্যাকআপ কী যাতে কোনো একটির লিমিট শেষ হলেও অন্যটি দিয়ে সাথে সাথে আপলোড হয়
-                const apiKeys = [
-                    '64fca1456c68e8e7bbcaebcebe6ea6ba',
-                    '4ac0d36441827bcaa8c91bd70415e6f3',
-                    'd36eb6591370ae7f9089d85875e56b22'
-                ];
+                if (!base64Clean) throw new Error("ছবি প্রসেস করা সম্ভব হয়নি");
 
-                let uploadedUrl = null;
-                let lastError = '';
+                // ২. আপনার নিজস্ব ImgBB API Key দিয়ে রিকোয়েস্ট প্রেরণ
+                const primaryApiKey = "6d7fde81f9936bd5cdb2b515c496a4f6";
 
-                for (const key of apiKeys) {
-                    try {
-                        const formData = new FormData();
-                        formData.append('image', base64Image);
+                const fd = new FormData();
+                fd.append('image', base64Clean);
 
-                        const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const data = await res.json();
-
-                        if (data && data.data && data.data.url) {
-                            uploadedUrl = data.data.url;
-                            break;
-                        } else if (data && data.error) {
-                            lastError = data.error.message || '';
-                        }
-                    } catch (err) {
-                        lastError = err.message || '';
-                    }
-                }
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${primaryApiKey}`, {
+                    method: 'POST',
+                    body: fd
+                });
+                const result = await res.json();
 
                 hideLoading();
 
-                if (uploadedUrl) {
+                if (result && result.data && result.data.url) {
+                    const uploadedUrl = result.data.url;
                     document.getElementById(targetInputId).value = uploadedUrl;
                     if (targetInputId === 'os-push-image' && typeof previewOsImage === 'function') {
                         previewOsImage(uploadedUrl);
@@ -2499,16 +2464,17 @@
                     Swal.fire({
                         icon: 'success',
                         title: 'ছবি আপলোড সফল! 🚀',
-                        text: 'ছবিটি সঠিক সাইজে অটো-ফিট হয়ে যুক্ত হয়েছে।',
-                        timer: 1500,
+                        text: 'আপনার ImgBB অ্যাকাউন্টে ছবিটি সফলভাবে আপলোড হয়েছে।',
+                        timer: 1600,
                         showConfirmButton: false
                     });
                 } else {
-                    Swal.fire('আপলোড ব্যর্থ!', lastError || 'সার্ভার রেসপন্স করেনি। অন্য ছবি দিয়ে চেষ্টা করুন।', 'error');
+                    const errorMsg = result && result.error ? result.error.message : 'সার্ভার রেসপন্স করেনি';
+                    Swal.fire('আপলোড ব্যর্থ!', errorMsg, 'error');
                 }
             } catch (e) {
                 hideLoading();
-                Swal.fire('Error', e.message || 'ছবি প্রসেস করতে সমস্যা হয়েছে', 'error');
+                Swal.fire('Error', e.message || 'ছবি আপলোডে সমস্যা হয়েছে', 'error');
             } finally {
                 inputElement.value = ''; // রিসেট করা হলো যাতে একই ছবি পুনরায় সিলেক্ট করা যায়
             }
